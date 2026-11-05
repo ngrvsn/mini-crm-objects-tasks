@@ -93,13 +93,15 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_placeholder
+      - name: Pack standalone runtime with pnpm symlinks preserved
+        if: matrix.node == 22
+        run: tar -czf next-runtime.tar.gz -C .next/standalone .
       - name: Save Node 22 runtime for smoke test
         if: matrix.node == 22
         uses: actions/upload-artifact@v4
         with:
           name: next-runtime
-          path: .next/standalone/
-          include-hidden-files: true
+          path: next-runtime.tar.gz
           retention-days: 1
 
   health:
@@ -120,6 +122,6 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: next-runtime
-          path: .next/standalone
+      - run: mkdir -p .next/standalone && tar -xzf next-runtime.tar.gz -C .next/standalone
       - run: pnpm exec supabase start -x studio,postgres-meta,storage-api,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,mailpit
       - run: node scripts/health-smoke.mjs
