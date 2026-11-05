@@ -23,6 +23,7 @@
     "test:security": "node scripts/check-rls.mjs",
     "test:concurrency": "node scripts/check-concurrency.mjs",
     "seed:local": "node scripts/seed-local.mjs",
+    "seed:demo-more": "node scripts/seed-demo-more.mjs",
     "db:test": "supabase test db",
     "audit": "pnpm audit --audit-level high",
     "prepare": "husky"
