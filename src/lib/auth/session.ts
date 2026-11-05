@@ -9,6 +9,7 @@ export const publicApi = axios.create({
 type AccessResponse = { accessToken: string; expiresIn: number }
 let accessToken: string | null = null
 let refreshPromise: Promise<string | null> | null = null
+let refreshController: AbortController | null = null
 let sessionEpoch = 0
 let channel: BroadcastChannel | null = null
 const pendingKey = 'crm-logout-pending'
@@ -46,10 +47,20 @@ async function runRefresh(): Promise<string | null> {
   const epoch = sessionEpoch
   const request = async () => {
     if (epoch !== sessionEpoch || isPending()) return null
-    const { data } = await publicApi.post<AccessResponse>('/auth/refresh')
-    if (epoch !== sessionEpoch || isPending()) return null
-    accessToken = data.accessToken
-    return accessToken
+    const controller = new AbortController()
+    refreshController = controller
+    try {
+      const { data } = await publicApi.post<AccessResponse>(
+        '/auth/refresh',
+        undefined,
+        { signal: controller.signal }
+      )
+      if (epoch !== sessionEpoch || isPending()) return null
+      accessToken = data.accessToken
+      return accessToken
+    } finally {
+      if (refreshController === controller) refreshController = null
+    }
   }
   try {
     return await withRefreshLock(request)
@@ -98,10 +109,11 @@ export async function bootstrapSession(): Promise<string | null> {
 }
 
 export async function login(email: string, password: string): Promise<void> {
-  const { data } = await publicApi.post<AccessResponse>('/auth/login', {
-    email,
-    password
-  })
+  // A delayed refresh response must not restore the previous user's cookie.
+  refreshController?.abort()
+  const { data } = await withRefreshLock(() =>
+    publicApi.post<AccessResponse>('/auth/login', { email, password })
+  )
   if (inBrowser()) window.localStorage.removeItem(pendingKey)
   sessionEpoch += 1
   accessToken = data.accessToken
@@ -132,14 +144,31 @@ export function initializeSessionSync(): () => void {
     if (event.data === 'logout') {
       clearAccessToken()
     } else if (event.data === 'login') {
+      // A different tab may have replaced the shared refresh cookie and user.
+      sessionEpoch += 1
+      const epoch = sessionEpoch
+      accessToken = null
+      window.dispatchEvent(
+        new CustomEvent('crm-auth-change', { detail: 'syncing' })
+      )
       try {
+        await refreshPromise?.catch(() => null)
+        if (epoch !== sessionEpoch) return
         if (await refreshAccessToken()) {
+          if (epoch !== sessionEpoch) return
           window.dispatchEvent(
             new CustomEvent('crm-auth-change', { detail: 'login' })
           )
+        } else if (epoch === sessionEpoch) {
+          window.dispatchEvent(
+            new CustomEvent('crm-auth-change', { detail: 'logout' })
+          )
         }
       } catch {
-        // The current tab remains unauthenticated until the next interaction.
+        if (epoch === sessionEpoch)
+          window.dispatchEvent(
+            new CustomEvent('crm-auth-change', { detail: 'logout' })
+          )
       }
     }
   }

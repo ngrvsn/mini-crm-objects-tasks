@@ -10,7 +10,7 @@ async function signIn(page: Page, email: string) {
   await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible()
 }
 
-function waitForAuthEvent(page: Page, type: 'login' | 'logout') {
+function waitForAuthEvent(page: Page, type: 'login' | 'logout' | 'syncing') {
   return page.evaluate(
     (expected) =>
       new Promise<void>((resolve) => {
@@ -24,6 +24,56 @@ function waitForAuthEvent(page: Page, type: 'login' | 'logout') {
     type
   )
 }
+
+test('смена пользователя в другой вкладке сразу скрывает прежние данные', async ({
+  page
+}) => {
+  await signIn(page, 'manager1@example.test')
+  await expect(page.getByRole('button', { name: 'Новый объект' })).toBeVisible()
+
+  let releaseRefresh: () => void = () => undefined
+  let refreshStarted: () => void = () => undefined
+  const holdRefresh = new Promise<void>((resolve) => {
+    releaseRefresh = resolve
+  })
+  const refreshSeen = new Promise<void>((resolve) => {
+    refreshStarted = resolve
+  })
+  try {
+    await page.route('**/api/auth/refresh', async (route) => {
+      refreshStarted()
+      await holdRefresh
+      await route.continue()
+    })
+    const syncing = waitForAuthEvent(page, 'syncing')
+    await page.evaluate(async (password) => {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'worker1@example.test', password })
+      })
+      if (!response.ok) throw new Error('Worker login failed')
+      const channel = new BroadcastChannel('crm-auth')
+      channel.postMessage('login')
+      channel.close()
+    }, password)
+    await syncing
+    await refreshSeen
+    await expect(
+      page.getByRole('button', { name: 'Новый объект' })
+    ).toHaveCount(0)
+    await expect(page.getByText('Постановщик', { exact: true })).toHaveCount(0)
+    releaseRefresh()
+    await expect(
+      page.getByRole('menuitem', { name: 'Мои задачи' })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Новый объект' })
+    ).toHaveCount(0)
+  } finally {
+    releaseRefresh()
+  }
+})
 
 test('вход, восстановление, защита cookie и выход', async ({
   page,
@@ -210,15 +260,25 @@ test('старый отказ refresh не сбрасывает новый ус�
   const requestSeen = new Promise<void>((resolve) => {
     refreshRequested = resolve
   })
+  let refreshDone: () => void = () => undefined
+  const refreshFinished = new Promise<void>((resolve) => {
+    refreshDone = resolve
+  })
   try {
     await page.route('**/api/auth/refresh', async (route) => {
       refreshRequested()
       await holdRefresh
-      await route.fulfill({
-        status: 401,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'Сессия истекла' })
-      })
+      try {
+        await route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Сессия истекла' })
+        })
+      } catch (error) {
+        if (!String(error).includes('Route is already handled')) throw error
+      } finally {
+        refreshDone()
+      }
     })
     await page.goto('/login')
     await requestSeen
@@ -226,17 +286,64 @@ test('старый отказ refresh не сбрасывает новый ус�
     await page.getByLabel('Пароль').fill(password)
     await page.getByRole('button', { name: 'Войти' }).click()
     await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible()
-    const refreshResponse = page.waitForResponse((response) =>
-      response.url().includes('/api/auth/refresh')
-    )
     releaseRefresh()
-    expect((await refreshResponse).status()).toBe(401)
-    await page.waitForTimeout(300)
+    await refreshFinished
     await expect(page).toHaveURL(/\/objects$/)
+    await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible()
+    await page.unroute('**/api/auth/refresh')
+    await page.reload()
     await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible()
   } finally {
     releaseRefresh()
     await context.close()
+  }
+})
+
+test('старый успешный refresh не подменяет новый вход', async ({ page }) => {
+  await signIn(page, 'manager1@example.test')
+  let releaseRefresh: () => void = () => undefined
+  let refreshStarted: () => void = () => undefined
+  const holdRefresh = new Promise<void>((resolve) => {
+    releaseRefresh = resolve
+  })
+  const refreshSeen = new Promise<void>((resolve) => {
+    refreshStarted = resolve
+  })
+  let refreshDone: () => void = () => undefined
+  const refreshFinished = new Promise<void>((resolve) => {
+    refreshDone = resolve
+  })
+  try {
+    await page.route('**/api/auth/refresh', async (route) => {
+      const response = await route.fetch()
+      expect(response.status()).toBe(200)
+      refreshStarted()
+      await holdRefresh
+      try {
+        await route.fulfill({ response })
+      } catch (error) {
+        if (!String(error).includes('Route is already handled')) throw error
+      } finally {
+        refreshDone()
+      }
+    })
+    await page.goto('/login')
+    await refreshSeen
+    await page.getByLabel('Email').fill('worker1@example.test')
+    await page.getByLabel('Пароль').fill(password)
+    await page.getByRole('button', { name: 'Войти' }).click()
+    await expect(
+      page.getByRole('menuitem', { name: 'Мои задачи' })
+    ).toBeVisible()
+    releaseRefresh()
+    await refreshFinished
+    await page.unroute('**/api/auth/refresh')
+    await page.reload()
+    await expect(
+      page.getByRole('menuitem', { name: 'Мои задачи' })
+    ).toBeVisible()
+  } finally {
+    releaseRefresh()
   }
 })
 

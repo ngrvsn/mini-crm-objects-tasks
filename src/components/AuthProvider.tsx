@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/store/auth'
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setProfile = useAuthStore((state) => state.setProfile)
   const setAnonymous = useAuthStore((state) => state.setAnonymous)
+  const setLoading = useAuthStore((state) => state.setLoading)
 
   useEffect(() => {
     let mounted = true
@@ -29,6 +30,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if ((event as CustomEvent<string>).detail === 'logout') {
         generation += 1
         setAnonymous()
+      } else if ((event as CustomEvent<string>).detail === 'syncing') {
+        generation += 1
+        setLoading()
       } else {
         void load()
       }
@@ -42,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('crm-auth-change', onChange)
       dispose()
     }
-  }, [setAnonymous, setProfile])
+  }, [setAnonymous, setLoading, setProfile])
 
   return children
 }
