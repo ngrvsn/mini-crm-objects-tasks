@@ -77,6 +77,34 @@ test('вход, восстановление, защита cookie и выход'
   await expect(page).toHaveURL(/\/login$/)
 })
 
+test('вход и выход синхронизируются между вкладками', async ({ browser }) => {
+  const context = await browser.newContext()
+  const first = await context.newPage()
+  const second = await context.newPage()
+  try {
+    await first.goto('/login')
+    await second.goto('/login')
+    await signIn(first, 'manager1@example.test')
+    await expect(second).toHaveURL(/\/objects$/)
+    await expect(second.getByRole('button', { name: 'Выйти' })).toBeVisible()
+
+    await Promise.all([first.reload(), second.reload()])
+    await expect(first.getByRole('button', { name: 'Выйти' })).toBeVisible()
+    await expect(second.getByRole('button', { name: 'Выйти' })).toBeVisible()
+
+    await first.getByRole('button', { name: 'Выйти' }).click()
+    await expect(first).toHaveURL(/\/login$/)
+    await expect(second).toHaveURL(/\/login$/)
+    await second.reload()
+    await expect(second).toHaveURL(/\/login$/)
+    expect(
+      (await context.cookies()).some((item) => item.name === 'crm-refresh')
+    ).toBe(false)
+  } finally {
+    await context.close()
+  }
+})
+
 test('исполнитель видит только свои объекты и действия, включая узкий экран', async ({
   browser
 }) => {
@@ -118,6 +146,11 @@ test('исполнитель видит только свои объекты и 
     expect(
       await worker.evaluate(() => document.documentElement.scrollWidth)
     ).toBeLessThanOrEqual(390)
+    await worker.setViewportSize({ width: 320, height: 700 })
+    expect(
+      await worker.evaluate(() => document.documentElement.scrollWidth)
+    ).toBeLessThanOrEqual(320)
+    await worker.setViewportSize({ width: 390, height: 844 })
     await worker.screenshot({
       path: 'test-results/mobile-objects.png',
       fullPage: true
