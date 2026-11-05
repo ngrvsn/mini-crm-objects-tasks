@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  basePath: process.env.CRM_BASE_PATH || undefined,
   devIndicators: false,
   output: 'standalone',
   reactStrictMode: true,

@@ -1,0 +1,12 @@
+.git
+.next
+node_modules
+.env*
+!.env.example
+coverage
+playwright-report
+test-results
+supabase/.branches
+supabase/.profiles
+supabase/.temp
+*.tsbuildinfo

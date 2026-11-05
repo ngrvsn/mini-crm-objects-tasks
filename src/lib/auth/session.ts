@@ -1,7 +1,7 @@
 import axios, { CanceledError, isAxiosError } from 'axios'
 
 export const publicApi = axios.create({
-  baseURL: '/api',
+  baseURL: `${process.env.NEXT_PUBLIC_CRM_BASE_PATH ?? ''}/api`,
   withCredentials: true,
   timeout: 10000
 })

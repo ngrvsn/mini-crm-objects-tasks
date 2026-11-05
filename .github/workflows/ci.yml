@@ -105,8 +105,34 @@ jobs:
           path: next-runtime.tar.gz
           retention-days: 1
 
+  container:
+    needs: [changes, quality]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the /crm production image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co \
+            --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_build_placeholder \
+            --build-arg CRM_BASE_PATH=/crm \
+            --build-arg NEXT_PUBLIC_CRM_BASE_PATH=/crm \
+            -t mini-crm:ci .
+      - name: Smoke test the container and route prefix
+        run: |
+          docker run -d --name crm-ci -p 127.0.0.1:3101:3000 mini-crm:ci
+          for attempt in {1..30}; do
+            if curl -fsS -o /dev/null http://127.0.0.1:3101/crm/login; then break; fi
+            sleep 2
+          done
+          curl -fsS -o /dev/null http://127.0.0.1:3101/crm/login
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3101/login)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Origin: https://attacker.example' http://127.0.0.1:3101/crm/api/auth/refresh)" = 403
+
   health:
-    needs: [changes, build]
+    needs: [changes, build, container]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20

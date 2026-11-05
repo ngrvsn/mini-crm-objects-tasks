@@ -16,6 +16,16 @@ Next.js + TypeScript + Ant Design + Axios + Zustand + Supabase. Постанов
 
 GitHub Actions запускает полный набор проверок при любом изменении вне корневых Markdown-файлов и каталога `docs/`. Если изменена только документация, выполняется проверка diff без сборок.
 
+## Публичный стенд
+
+CRM работает по адресу [https://120nmine.tech/crm](https://120nmine.tech/crm), healthcheck — [https://120nmine.tech/crm/api/health](https://120nmine.tech/crm/api/health). Это отдельный контейнер `crm-app` и отдельный Compose проект в `/opt/mini-crm-objects-tasks`; существующие сервисы Minecraft и его PostgreSQL не менялись. В Caddy добавлен только маршрут `/crm` и `/crm/*`. Образ собирается локально через `Dockerfile` с `CRM_BASE_PATH=/crm` и публичным ключом Supabase; на сервер попадает только publishable key. `APP_ORIGIN` на сервере — `https://120nmine.tech`.
+
+Перед очередным ручным обновлением: дождаться зелёного CI, собрать образ с теми же build args, передать его в `/opt/mini-crm-objects-tasks`, выполнить `docker load`, обновить `CRM_IMAGE` в `.env` и запустить `docker compose --project-directory /opt/mini-crm-objects-tasks --env-file /opt/mini-crm-objects-tasks/.env -f /opt/mini-crm-objects-tasks/compose.yml up -d`. Проверить `/crm/api/health` и браузерный сценарий. При переустановке Minecraft сайта, если его Caddyfile был заменён, повторно выполнить `/opt/mini-crm-objects-tasks/install-route.sh`.
+
+Для полного удаления CRM **после показа** выполнить на сервере `/opt/mini-crm-objects-tasks/uninstall.sh`. Скрипт убирает только помеченный маршрут CRM, контейнер, его образ и каталог приложения. Сеть и контейнеры Minecraft остаются. Облачный проект Supabase удаляется отдельно в панели Supabase после показа; скрипт его не затрагивает.
+
+Публичный E2E запускается с локальным файлом учётных записей через `CRM_DEMO_ACCOUNTS_FILE=... pnpm test:deploy`. Прямые проверки RLS и cookie запускаются `pnpm test:deployed-security` с `CRM_DEMO_ACCOUNTS_FILE`, `CRM_SUPABASE_URL` и `CRM_SUPABASE_PUBLISHABLE_KEY`. Пароли и ключи не коммитятся.
+
 ## Структура проекта
 
 - `src/app/` — пять экранов и серверные маршруты входа, обновления сессии, выхода и healthcheck.
@@ -46,4 +56,4 @@ RLS ограничивает чтение строк. У браузерной р
 
 ## Текущее состояние сдачи
 
-Код опубликован в [GitHub](https://github.com/ngrvsn/mini-crm-objects-tasks). Миграции применены к созданному облачному Supabase без сброса базы. Для демонстрации созданы один постановщик, два исполнителя, три объекта и четыре задачи в разных статусах. Логины и случайные пароли сохранены только на этой машине в `C:\Users\AIAvenger\Desktop\mini-crm-demo-accounts.json`; этот файл не входит в репозиторий. Проверены входы всех трёх пользователей и прямые запреты RLS на облачном Data API. Серверное приложение и публичную ссылку добавим после получения сервера. См. [решения и допущения](DECISIONS.md), [аудит безопасности](SECURITY_AUDIT.md) и [объяснение для руководителя](FOR_MANAGER.md).
+Код опубликован в [GitHub](https://github.com/ngrvsn/mini-crm-objects-tasks). Миграции применены к созданному облачному Supabase без сброса базы. Для демонстрации созданы один постановщик, два исполнителя, три объекта и четыре задачи в разных статусах. Логины и случайные пароли сохранены только на этой машине в `C:\Users\AIAvenger\Desktop\mini-crm-demo-accounts.json`; этот файл не входит в репозиторий. После деплоя проверены публичный сценарий постановщика и двух исполнителей, защищённая cookie и прямые запреты RLS на облачном Data API. См. [решения и допущения](DECISIONS.md), [аудит безопасности](SECURITY_AUDIT.md) и [объяснение для руководителя](FOR_MANAGER.md).

@@ -10,7 +10,7 @@ type TokenResponse = {
 
 const production = process.env.NODE_ENV === 'production'
 const cookieName = production ? '__Secure-crm-refresh' : 'crm-refresh'
-const cookiePath = '/api/auth'
+const cookiePath = `${process.env.CRM_BASE_PATH ?? ''}/api/auth`
 
 export function checkOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin')
