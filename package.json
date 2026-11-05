@@ -19,6 +19,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:security": "node scripts/check-rls.mjs",
+    "test:concurrency": "node scripts/check-concurrency.mjs",
     "seed:local": "node scripts/seed-local.mjs",
     "db:test": "supabase test db",
     "audit": "pnpm audit --audit-level high",

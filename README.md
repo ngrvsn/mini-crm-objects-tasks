@@ -12,7 +12,7 @@ Next.js + TypeScript + Ant Design + Axios + Zustand + Supabase. Постанов
 4. `pnpm seed:local` — создаст локально двух постановщиков и двух исполнителей, три объекта и задачи в разных статусах. Пароль локальных пользователей `LocalTestPassw0rd!`; email: `manager1@example.test`, `manager2@example.test`, `worker1@example.test`, `worker2@example.test`. Эти данные **только для локального стенда**.
 5. Для работы с локальным стендом укажите его `API_URL` и `PUBLISHABLE_KEY` из `pnpm exec supabase status -o env` в `.env.local`, затем `pnpm dev`. Для облачного проекта оставьте параметры из панели Supabase.
 
-`pnpm test:coverage`, `pnpm db:test`, `pnpm test:security` и `pnpm test:e2e` проверяют интерфейс, права доступа и прямой Data API. E2E сам запускает приложение с локальными параметрами Supabase; перед ним должны работать локальный Supabase и `pnpm seed:local`. На Windows E2E использует установленный Edge, в CI — Chromium. `pnpm build` проверяет production-сборку.
+`pnpm test:coverage`, `pnpm db:test`, `pnpm test:security`, `pnpm test:concurrency` и `pnpm test:e2e` проверяют интерфейс, права доступа, прямой Data API и одновременные операции с объектом. E2E сам запускает приложение с локальными параметрами Supabase; перед ним должны работать локальный Supabase и `pnpm seed:local`. Для `test:concurrency` нужен Docker с локальным контейнером базы. На Windows E2E использует установленный Edge, в CI — Chromium. `pnpm build` проверяет production-сборку.
 
 ## Структура проекта
 
@@ -27,7 +27,7 @@ Next.js + TypeScript + Ant Design + Axios + Zustand + Supabase. Постанов
 
 ## Облачный проект
 
-В Supabase должны быть включены Data API и RLS, выключены автоматические права для новых таблиц и **Allow new users to sign up**. Миграции хранятся в `supabase/migrations/` и добавляют только CRM-схему. Облачную базу **не сбрасывать**. Перед применением новых миграций проверить их через `supabase db push --remote=<connection-string> --dry-run`; затем применить через CLI. Текущая начальная миграция уже применена к созданному проекту.
+В Supabase должны быть включены Data API и RLS, выключены автоматические права для новых таблиц и **Allow new users to sign up**. Миграции хранятся в `supabase/migrations/` и добавляют только CRM-схему. Облачную базу **не сбрасывать**. Перед применением новых миграций проверить их через `supabase db push --remote=<connection-string> --dry-run`; затем применить через CLI. Обе текущие миграции уже применены к созданному проекту.
 
 В `Authentication → Users → Add user` вручную создайте пользователей с подтверждённым email. Роли назначаются только администратором базы в `public.profiles`, например:
 
@@ -44,4 +44,4 @@ RLS ограничивает чтение строк. У браузерной р
 
 ## Текущее состояние сдачи
 
-Код опубликован в [GitHub](https://github.com/ngrvsn/mini-crm-objects-tasks). Начальная миграция применена к созданному облачному Supabase без сброса базы. Для демонстрации созданы один постановщик, два исполнителя, три объекта и четыре задачи в разных статусах. Логины и случайные пароли сохранены только на этой машине в `C:\Users\AIAvenger\Desktop\mini-crm-demo-accounts.json`; этот файл не входит в репозиторий. Проверены входы всех трёх пользователей и прямые запреты RLS на облачном Data API. Серверное приложение и публичную ссылку добавим после получения сервера. См. [решения и допущения](DECISIONS.md), [аудит безопасности](SECURITY_AUDIT.md) и [объяснение для руководителя](FOR_MANAGER.md).
+Код опубликован в [GitHub](https://github.com/ngrvsn/mini-crm-objects-tasks). Миграции применены к созданному облачному Supabase без сброса базы. Для демонстрации созданы один постановщик, два исполнителя, три объекта и четыре задачи в разных статусах. Логины и случайные пароли сохранены только на этой машине в `C:\Users\AIAvenger\Desktop\mini-crm-demo-accounts.json`; этот файл не входит в репозиторий. Проверены входы всех трёх пользователей и прямые запреты RLS на облачном Data API. Серверное приложение и публичную ссылку добавим после получения сервера. См. [решения и допущения](DECISIONS.md), [аудит безопасности](SECURITY_AUDIT.md) и [объяснение для руководителя](FOR_MANAGER.md).

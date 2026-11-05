@@ -61,6 +61,7 @@ jobs:
       - run: pnpm db:test
       - run: pnpm seed:local
       - run: pnpm test:security
+      - run: pnpm test:concurrency
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - name: Upload E2E report on failure
