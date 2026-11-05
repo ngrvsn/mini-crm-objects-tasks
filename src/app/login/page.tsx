@@ -1,6 +1,7 @@
 'use client'
 
 import { Alert, Button, Card, Form, Input, Typography } from 'antd'
+import { isCancel } from 'axios'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { getCurrentProfile } from '@/lib/api/profiles'
@@ -43,6 +44,7 @@ export default function LoginPage() {
       setProfile(profile)
       router.replace(profile.role === 'executor' ? '/my-tasks' : '/objects')
     } catch (caught) {
+      if (isCancel(caught)) return
       if (loginEpoch !== null && getSessionEpoch() !== loginEpoch) return
       if (loginEpoch !== null) await logout()
       setError(errorMessage(caught))

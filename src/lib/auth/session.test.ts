@@ -1,4 +1,4 @@
-import type { AxiosResponse } from 'axios'
+import { CanceledError, type AxiosResponse } from 'axios'
 import { afterEach, expect, it, vi } from 'vitest'
 import {
   clearAccessToken,
@@ -6,6 +6,7 @@ import {
   getSessionEpoch,
   initializeSessionSync,
   login,
+  logout,
   publicApi,
   refreshAccessToken
 } from './session'
@@ -15,6 +16,36 @@ afterEach(() => {
   vi.unstubAllGlobals()
   window.localStorage.clear()
   clearAccessToken()
+})
+
+it('выход во время ожидающего входа не возвращает пользователя', async () => {
+  let finishLogin: (value: AxiosResponse) => void = () => undefined
+  let loginStarted: () => void = () => undefined
+  const loginResponse = new Promise<AxiosResponse>((resolve) => {
+    finishLogin = resolve
+  })
+  const requestSeen = new Promise<void>((resolve) => {
+    loginStarted = resolve
+  })
+  vi.spyOn(publicApi, 'post').mockImplementation(async (url) => {
+    if (url === '/auth/login') {
+      loginStarted()
+      return loginResponse
+    }
+    return { data: { ok: true } } as AxiosResponse
+  })
+
+  const pendingLogin = login('manager@example.test', 'password').catch(
+    (error: unknown) => error
+  )
+  await requestSeen
+  await logout()
+  finishLogin({
+    data: { accessToken: 'late-login-token', expiresIn: 3600 }
+  } as AxiosResponse)
+  expect(await pendingLogin).toBeInstanceOf(CanceledError)
+
+  expect(getAccessToken()).toBeNull()
 })
 
 it('смена пользователя в другой вкладке сбрасывает старый токен', async () => {

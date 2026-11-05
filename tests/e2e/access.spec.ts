@@ -423,6 +423,66 @@ test('ожидающий вход не восстанавливает сесси
   }
 })
 
+test('поздний ответ входа не восстанавливает сессию после выхода', async ({
+  page,
+  context
+}) => {
+  await page.goto('/login')
+  let releaseLogin: () => void = () => undefined
+  let loginStarted: () => void = () => undefined
+  let loginDone: () => void = () => undefined
+  const holdLogin = new Promise<void>((resolve) => {
+    releaseLogin = resolve
+  })
+  const requestSeen = new Promise<void>((resolve) => {
+    loginStarted = resolve
+  })
+  const requestFinished = new Promise<void>((resolve) => {
+    loginDone = resolve
+  })
+  try {
+    await page.route('**/api/auth/login', async (route) => {
+      const response = await route.fetch()
+      expect(response.status()).toBe(200)
+      loginStarted()
+      await holdLogin
+      try {
+        await route.fulfill({ response })
+      } catch (error) {
+        if (!String(error).includes('Route is already handled')) throw error
+      } finally {
+        loginDone()
+      }
+    })
+    await page.getByLabel('Email').fill('manager1@example.test')
+    await page.getByLabel('Пароль').fill(password)
+    await page.getByRole('button', { name: 'Войти' }).click()
+    await requestSeen
+
+    const logoutSeen = waitForAuthEvent(page, 'logout')
+    await page.evaluate(() => {
+      const channel = new BroadcastChannel('crm-auth')
+      channel.postMessage('logout')
+      channel.close()
+    })
+    await logoutSeen
+    await page.evaluate(async () => {
+      const response = await fetch('/api/auth/logout', { method: 'POST' })
+      if (!response.ok) throw new Error('Logout failed')
+    })
+    releaseLogin()
+    await requestFinished
+    await expect(page.getByRole('button', { name: 'Войти' })).toBeEnabled()
+    expect(
+      (await context.cookies()).some((cookie) => cookie.name === 'crm-refresh')
+    ).toBe(false)
+    await page.reload()
+    await expect(page).toHaveURL(/\/login$/)
+  } finally {
+    releaseLogin()
+  }
+})
+
 test('исполнитель видит только свои объекты и действия, включая узкий экран', async ({
   browser
 }) => {

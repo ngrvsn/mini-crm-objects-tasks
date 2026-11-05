@@ -1,4 +1,4 @@
-import axios, { isAxiosError } from 'axios'
+import axios, { CanceledError, isAxiosError } from 'axios'
 
 export const publicApi = axios.create({
   baseURL: '/api',
@@ -10,6 +10,7 @@ type AccessResponse = { accessToken: string; expiresIn: number }
 let accessToken: string | null = null
 let refreshPromise: Promise<string | null> | null = null
 let refreshController: AbortController | null = null
+let loginController: AbortController | null = null
 let sessionEpoch = 0
 let channel: BroadcastChannel | null = null
 const pendingKey = 'crm-logout-pending'
@@ -109,18 +110,32 @@ export async function bootstrapSession(): Promise<string | null> {
 }
 
 export async function login(email: string, password: string): Promise<void> {
-  // A delayed refresh response must not restore the previous user's cookie.
+  // Delayed auth responses must not restore a replaced or closed session.
+  loginController?.abort()
   refreshController?.abort()
-  const { data } = await withRefreshLock(() =>
-    publicApi.post<AccessResponse>('/auth/login', { email, password })
-  )
-  if (inBrowser()) window.localStorage.removeItem(pendingKey)
-  sessionEpoch += 1
-  accessToken = data.accessToken
-  emit('login')
+  const controller = new AbortController()
+  loginController = controller
+  try {
+    const { data } = await withRefreshLock(() =>
+      publicApi.post<AccessResponse>(
+        '/auth/login',
+        { email, password },
+        { signal: controller.signal }
+      )
+    )
+    if (controller.signal.aborted || loginController !== controller)
+      throw new CanceledError('Вход отменён')
+    if (inBrowser()) window.localStorage.removeItem(pendingKey)
+    sessionEpoch += 1
+    accessToken = data.accessToken
+    emit('login')
+  } finally {
+    if (loginController === controller) loginController = null
+  }
 }
 
 export async function logout(): Promise<void> {
+  loginController?.abort()
   if (inBrowser()) window.localStorage.setItem(pendingKey, '1')
   clearAccessToken(true)
   const epoch = sessionEpoch
@@ -142,6 +157,7 @@ export function initializeSessionSync(): () => void {
   channel = new BroadcastChannel('crm-auth')
   const onMessage = async (event: MessageEvent<'login' | 'logout'>) => {
     if (event.data === 'logout') {
+      loginController?.abort()
       clearAccessToken()
     } else if (event.data === 'login') {
       // A different tab may have replaced the shared refresh cookie and user.
