@@ -51,13 +51,7 @@ const run = (args) =>
     stdio: 'inherit',
     shell: process.platform === 'win32'
   })
-if (
-  staged.some(
-    (file) =>
-      /^(src|tests|scripts)\//.test(file) ||
-      /^(next|eslint|tsconfig|vitest|playwright)/.test(file)
-  )
-) {
+if (staged.some((file) => !/^[^/]+\.md$|^docs\//.test(file))) {
   run(['lint'])
   run(['typecheck'])
   run(['test'])
