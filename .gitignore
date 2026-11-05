@@ -7,6 +7,7 @@ test-results/
 !.env.example
 *.tsbuildinfo
 .DS_Store
+/AGENTS.md
 supabase/.branches/
 supabase/.profiles/
 supabase/.temp/

@@ -18,12 +18,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:deploy": "playwright test --config playwright.deploy.config.ts",
-    "test:deployed-security": "node scripts/check-deployed-security.mjs",
     "test:security": "node scripts/check-rls.mjs",
     "test:concurrency": "node scripts/check-concurrency.mjs",
     "seed:local": "node scripts/seed-local.mjs",
-    "seed:demo-more": "node scripts/seed-demo-more.mjs",
     "db:test": "supabase test db",
     "audit": "pnpm audit --audit-level high",
     "prepare": "husky"
