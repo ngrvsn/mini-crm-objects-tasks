@@ -5,7 +5,6 @@ import {
   App,
   Button,
   Form,
-  Input,
   Modal,
   Popconfirm,
   Space,
@@ -16,13 +15,14 @@ import type { ColumnsType } from 'antd/es/table'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
+import { ObjectFields } from '@/components/forms/ObjectFields'
 import {
   createObject,
   deleteObject,
   getObjects,
   updateObject,
   type ObjectInput
-} from '@/lib/api/crm'
+} from '@/lib/api/objects'
 import { errorMessage } from '@/lib/error'
 import { useAuthStore } from '@/lib/store/auth'
 import type { ObjectRecord } from '@/lib/types'
@@ -38,14 +38,11 @@ export default function ObjectsPage() {
   const [form] = Form.useForm<ObjectInput>()
 
   const reload = async () => {
-    setLoading(true)
     try {
       setObjects(await getObjects())
       setError(null)
     } catch (caught) {
       setError(errorMessage(caught))
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -57,13 +54,14 @@ export default function ObjectsPage() {
         if (active) {
           setObjects(items)
           setError(null)
+          setLoading(false)
         }
       })
       .catch((caught) => {
-        if (active) setError(errorMessage(caught))
-      })
-      .finally(() => {
-        if (active) setLoading(false)
+        if (active) {
+          setError(errorMessage(caught))
+          setLoading(false)
+        }
       })
     return () => {
       active = false
@@ -127,6 +125,9 @@ export default function ObjectsPage() {
                 </Button>
                 <Popconfirm
                   title="Удалить объект и скрыть его задачи?"
+                  okText="Удалить"
+                  cancelText="Отмена"
+                  okButtonProps={{ danger: true }}
                   onConfirm={() => void remove(row.id)}
                 >
                   <Button size="small" danger>
@@ -151,7 +152,7 @@ export default function ObjectsPage() {
         )}
       </div>
       {error && (
-        <Alert type="error" message={error} showIcon className="card-spacing" />
+        <Alert type="error" title={error} showIcon className="card-spacing" />
       )}
       <Table
         rowKey="id"
@@ -175,20 +176,7 @@ export default function ObjectsPage() {
           layout="vertical"
           onFinish={(values) => void save(values)}
         >
-          <Form.Item
-            label="Название"
-            name="name"
-            rules={[{ required: true, whitespace: true, max: 200 }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            label="Адрес"
-            name="address"
-            rules={[{ required: true, whitespace: true, max: 300 }]}
-          >
-            <Input />
-          </Form.Item>
+          <ObjectFields />
         </Form>
       </Modal>
     </AppShell>

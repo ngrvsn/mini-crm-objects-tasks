@@ -28,6 +28,8 @@ test('постановщик и два исполнителя проходят �
     await signIn(manager, 'manager1@example.test')
     await manager.getByRole('button', { name: 'Новый объект' }).click()
     const objectDialog = manager.getByRole('dialog')
+    await objectDialog.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(objectDialog).toBeVisible()
     await objectDialog.getByLabel('Название').fill(objectName)
     await objectDialog.getByLabel('Адрес').fill('Москва, Тестовая, 1')
     await objectDialog.getByRole('button', { name: 'Сохранить' }).click()
@@ -36,6 +38,8 @@ test('постановщик и два исполнителя проходят �
     const objectUrl = manager.url()
     await manager.getByRole('button', { name: 'Новая задача' }).click()
     const taskDialog = manager.getByRole('dialog')
+    await taskDialog.getByRole('button', { name: 'Создать' }).click()
+    await expect(taskDialog).toBeVisible()
     await taskDialog.getByLabel('Название').fill(taskOne)
     await taskDialog
       .getByLabel('Описание')
@@ -46,10 +50,25 @@ test('постановщик и два исполнителя проходят �
     await manager.getByRole('link', { name: taskOne }).click()
     await expect(manager).toHaveURL(/\/tasks\/[0-9a-f-]+$/)
     const taskOneUrl = manager.url()
+    await expect(manager.getByRole('button', { name: 'Принять' })).toHaveCount(
+      0
+    )
+    await expect(
+      manager.getByRole('button', { name: 'Взять в работу' })
+    ).toHaveCount(0)
 
     await signIn(worker1, 'worker1@example.test')
     await expect(worker1.getByRole('link', { name: taskOne })).toBeVisible()
     await worker1.getByRole('link', { name: taskOne }).click()
+    await expect(worker1.getByRole('button', { name: 'Изменить' })).toHaveCount(
+      0
+    )
+    await expect(worker1.getByRole('button', { name: 'Удалить' })).toHaveCount(
+      0
+    )
+    await expect(worker1.getByRole('button', { name: 'Принять' })).toHaveCount(
+      0
+    )
     await worker1.getByRole('button', { name: 'Взять в работу' }).click()
     await expect(worker1.getByText('В работе').first()).toBeVisible()
     await worker1.reload()
@@ -69,6 +88,10 @@ test('постановщик и два исполнителя проходят �
     await manager.goto(objectUrl)
     await manager.getByRole('button', { name: 'Новая задача' }).click()
     const secondDialog = manager.getByRole('dialog')
+    await secondDialog.getByLabel('Название').fill('Черновик, который отменили')
+    await secondDialog.getByRole('button', { name: 'Отмена' }).click()
+    await manager.getByRole('button', { name: 'Новая задача' }).click()
+    await expect(secondDialog.getByLabel('Название')).toHaveValue('')
     await secondDialog.getByLabel('Название').fill(taskTwo)
     await secondDialog.getByLabel('Исполнитель').click()
     await manager.getByText('Исполнитель 2', { exact: true }).last().click()
@@ -86,6 +109,15 @@ test('постановщик и два исполнителя проходят �
     await manager.goto(taskTwoUrl)
     await manager.getByRole('button', { name: 'Вернуть на доработку' }).click()
     const revisionDialog = manager.getByRole('dialog')
+    await revisionDialog.getByLabel('Комментарий').fill('Отменённый черновик')
+    await revisionDialog.getByRole('button', { name: 'Отмена' }).click()
+    await manager.getByRole('button', { name: 'Вернуть на доработку' }).click()
+    await expect(revisionDialog.getByLabel('Комментарий')).toHaveValue('')
+    await revisionDialog.getByRole('button', { name: 'Вернуть' }).click()
+    await expect(
+      revisionDialog.getByText('Укажите, что исправить')
+    ).toBeVisible()
+    await expect(manager.getByText('На проверке').first()).toBeVisible()
     await revisionDialog
       .getByLabel('Комментарий')
       .fill('Исправить количество материалов')
@@ -102,6 +134,26 @@ test('постановщик и два исполнителя проходят �
       worker2.getByText('Исправить количество материалов')
     ).toBeVisible()
     await worker2.getByRole('button', { name: 'Взять в работу' }).click()
+    await worker2.getByRole('button', { name: 'Отправить на проверку' }).click()
+    await manager.reload()
+    await manager.getByRole('button', { name: 'Принять' }).click()
+    await expect(manager.getByText('Принята').first()).toBeVisible()
+    await expect(manager.locator('.ant-timeline-item')).toHaveCount(7)
+    await expect(manager.getByText(/Создание.*Новая/)).toBeVisible()
+    await expect(manager.getByText(/На проверке.*На доработке/)).toBeVisible()
+    await expect(manager.getByText(/На проверке.*Принята/)).toBeVisible()
+    await manager.screenshot({
+      path: 'test-results/task-accepted.png',
+      fullPage: true
+    })
+    await worker2.reload()
+    await expect(worker2.getByText('Принята').first()).toBeVisible()
+    await expect(
+      worker2.getByRole('button', { name: 'Взять в работу' })
+    ).toHaveCount(0)
+    await expect(
+      worker2.getByRole('button', { name: 'Отправить на проверку' })
+    ).toHaveCount(0)
     await worker2.getByRole('button', { name: 'Выйти' }).click()
     await expect(worker2.getByRole('button', { name: 'Войти' })).toBeVisible()
 
@@ -114,7 +166,10 @@ test('постановщик и два исполнителя проходят �
       'Исправленное описание'
     )
     await manager.getByRole('button', { name: 'Удалить' }).click()
-    await manager.getByRole('button', { name: 'OK' }).click()
+    await manager
+      .locator('.ant-popconfirm')
+      .getByRole('button', { name: 'Удалить' })
+      .click()
     await expect(manager).toHaveURL(/\/objects\/[0-9a-f-]+$/)
 
     await manager.goto(objectUrl)
@@ -126,7 +181,10 @@ test('постановщик и два исполнителя проходят �
       manager.getByText('Москва, Новая Тестовая, 2').first()
     ).toBeVisible()
     await manager.getByRole('button', { name: 'Удалить' }).click()
-    await manager.getByRole('button', { name: 'OK' }).click()
+    await manager
+      .locator('.ant-popconfirm')
+      .getByRole('button', { name: 'Удалить' })
+      .click()
     await expect(manager).toHaveURL(/\/objects$/)
     await expect(manager.getByRole('link', { name: objectName })).toHaveCount(0)
   } finally {

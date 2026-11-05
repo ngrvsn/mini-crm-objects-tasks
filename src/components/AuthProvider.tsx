@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { getCurrentProfile } from '@/lib/api/crm'
+import { getCurrentProfile } from '@/lib/api/profiles'
 import { bootstrapSession, initializeSessionSync } from '@/lib/auth/session'
 import { useAuthStore } from '@/lib/store/auth'
 

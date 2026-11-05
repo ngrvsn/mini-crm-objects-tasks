@@ -10,9 +10,10 @@ import {
 } from '@/lib/auth/server'
 
 export async function POST(request: NextRequest) {
-  if (!checkOrigin(request)) return authError(403, 'Invalid origin')
+  if (!checkOrigin(request))
+    return authError(403, 'Недопустимый источник запроса')
   const refreshToken = getRefreshToken(request)
-  if (!refreshToken) return authError(401, 'No session')
+  if (!refreshToken) return authError(401, 'Нет активной сессии')
   try {
     return tokenResponse(
       await tokenRequest('refresh_token', { refresh_token: refreshToken })
@@ -22,8 +23,8 @@ export async function POST(request: NextRequest) {
       isAxiosError(error) &&
       [400, 401].includes(error.response?.status ?? 0)
     ) {
-      return clearRefreshCookie(authError(401, 'Session expired'))
+      return clearRefreshCookie(authError(401, 'Сессия истекла'))
     }
-    return authError(503, 'Authentication is unavailable')
+    return authError(503, 'Сервис входа временно недоступен')
   }
 }

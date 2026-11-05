@@ -1,8 +1,8 @@
 'use client'
 
-import { Button, Layout, Menu, Space, Spin, Typography } from 'antd'
+import { Button, Drawer, Layout, Menu, Space, Spin, Typography } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { logout } from '@/lib/auth/session'
 import { useAuthStore } from '@/lib/store/auth'
 
@@ -12,6 +12,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const { profile, status } = useAuthStore()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     if (status === 'anonymous') router.replace('/login')
@@ -26,28 +27,45 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const selected = pathname.startsWith('/my-tasks') ? '/my-tasks' : '/objects'
+  const menuItems = [
+    { key: '/objects', label: 'Объекты' },
+    ...(profile.role === 'executor'
+      ? [{ key: '/my-tasks', label: 'Мои задачи' }]
+      : [])
+  ]
+  const navigate = (key: string) => {
+    setMenuOpen(false)
+    router.push(key)
+  }
   return (
     <Layout className="app-layout">
-      <Sider breakpoint="lg" collapsedWidth="0" className="app-sider">
+      <Sider width={220} className="app-sider">
         <div className="brand">Мини-CRM</div>
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[selected]}
-          onClick={({ key }) => router.push(key)}
-          items={[
-            { key: '/objects', label: 'Объекты' },
-            ...(profile.role === 'executor'
-              ? [{ key: '/my-tasks', label: 'Мои задачи' }]
-              : [])
-          ]}
+          onClick={({ key }) => navigate(key)}
+          items={menuItems}
         />
       </Sider>
       <Layout>
-        <Header className="app-header">
-          <Typography.Text strong>{profile.display_name}</Typography.Text>
-          <Space>
-            <Typography.Text type="secondary">
+        <Header className="app-header" style={{ background: '#fff' }}>
+          <div className="app-header-identity">
+            <Button
+              className="mobile-menu-button"
+              type="text"
+              aria-label="Открыть меню"
+              onClick={() => setMenuOpen(true)}
+            >
+              <span aria-hidden="true">☰</span>
+            </Button>
+            <Typography.Text strong className="app-header-name">
+              {profile.display_name}
+            </Typography.Text>
+          </div>
+          <Space className="app-header-actions">
+            <Typography.Text type="secondary" className="app-header-role">
               {profile.role === 'manager' ? 'Постановщик' : 'Исполнитель'}
             </Typography.Text>
             <Button
@@ -62,6 +80,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Header>
         <Content className="app-content">{children}</Content>
       </Layout>
+      <Drawer
+        title="Мини-CRM"
+        placement="left"
+        size={240}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        className="mobile-menu-drawer"
+      >
+        <Menu
+          mode="inline"
+          selectedKeys={[selected]}
+          onClick={({ key }) => navigate(key)}
+          items={menuItems}
+        />
+      </Drawer>
     </Layout>
   )
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
 import { App as AntdApp, ConfigProvider } from 'antd'
+import ruRU from 'antd/locale/ru_RU'
 import { AuthProvider } from '@/components/AuthProvider'
 import './styles.css'
 
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body>
         <AntdRegistry>
           <ConfigProvider
+            locale={ruRU}
             theme={{ token: { colorPrimary: '#205ca8', borderRadius: 8 } }}
           >
             <AntdApp>

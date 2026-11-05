@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
 import { StatusTag } from '@/components/StatusTag'
-import { getObjects, getTasks } from '@/lib/api/crm'
+import { getObjects } from '@/lib/api/objects'
+import { getTasks } from '@/lib/api/tasks'
 import { errorMessage } from '@/lib/error'
 import { useAuthStore } from '@/lib/store/auth'
 import type { ObjectRecord, Task } from '@/lib/types'
@@ -20,13 +21,25 @@ export default function MyTasksPage() {
 
   useEffect(() => {
     if (status !== 'authenticated' || profile?.role !== 'executor') return
+    let active = true
     Promise.all([getTasks(undefined, profile.id), getObjects()])
       .then(([nextTasks, nextObjects]) => {
-        setTasks(nextTasks)
-        setObjects(nextObjects)
+        if (active) {
+          setTasks(nextTasks)
+          setObjects(nextObjects)
+          setError(null)
+          setLoading(false)
+        }
       })
-      .catch((caught) => setError(errorMessage(caught)))
-      .finally(() => setLoading(false))
+      .catch((caught) => {
+        if (active) {
+          setError(errorMessage(caught))
+          setLoading(false)
+        }
+      })
+    return () => {
+      active = false
+    }
   }, [profile?.id, profile?.role, status])
 
   const columns: ColumnsType<Task> = [
@@ -63,13 +76,13 @@ export default function MyTasksPage() {
         <Typography.Title level={1}>Мои задачи</Typography.Title>
       </div>
       {profile?.role === 'manager' ? (
-        <Alert type="info" message="Этот раздел предназначен исполнителям" />
+        <Alert type="info" title="Этот раздел предназначен исполнителям" />
       ) : (
         <>
           {error && (
             <Alert
               type="error"
-              message={error}
+              title={error}
               showIcon
               className="card-spacing"
             />

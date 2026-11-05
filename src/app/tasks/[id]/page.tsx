@@ -10,7 +10,6 @@ import {
   Input,
   Modal,
   Popconfirm,
-  Select,
   Space,
   Spin,
   Timeline,
@@ -21,16 +20,17 @@ import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
 import { StatusTag } from '@/components/StatusTag'
+import { TaskFields } from '@/components/forms/TaskFields'
+import { getObjects } from '@/lib/api/objects'
+import { getProfiles } from '@/lib/api/profiles'
 import {
   deleteTask,
   getHistory,
-  getObjects,
-  getProfiles,
   getTask,
   transitionTask,
   updateTask,
   type TaskInput
-} from '@/lib/api/crm'
+} from '@/lib/api/tasks'
 import { errorMessage } from '@/lib/error'
 import { availableTransitions, statusLabels } from '@/lib/status'
 import { useAuthStore } from '@/lib/store/auth'
@@ -60,7 +60,6 @@ export default function TaskPage() {
   const [revisionForm] = Form.useForm<{ comment: string }>()
 
   const reload = async () => {
-    setLoading(true)
     try {
       const [nextTask, nextHistory, nextProfiles, nextObjects] =
         await Promise.all([
@@ -177,6 +176,9 @@ export default function TaskPage() {
                   </Button>
                   <Popconfirm
                     title="Удалить задачу? История сохранится."
+                    okText="Удалить"
+                    cancelText="Отмена"
+                    okButtonProps={{ danger: true }}
                     onConfirm={() => void remove()}
                   >
                     <Button danger>Удалить</Button>
@@ -268,7 +270,7 @@ export default function TaskPage() {
           </>
         )
       )}
-      {error && <Alert type="error" message={error} showIcon />}
+      {error && <Alert type="error" title={error} showIcon />}
 
       <Modal
         forceRender
@@ -278,55 +280,28 @@ export default function TaskPage() {
         onOk={() => editForm.submit()}
         confirmLoading={busy}
         okText="Сохранить"
+        cancelText="Отмена"
       >
         <Form
           form={editForm}
           layout="vertical"
           onFinish={(values) => void save(values)}
         >
-          <Form.Item
-            name="title"
-            label="Название"
-            rules={[{ required: true, whitespace: true, max: 200 }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item name="description" label="Описание">
-            <Input.TextArea rows={4} />
-          </Form.Item>
-          <Form.Item
-            name="object_id"
-            label="Объект"
-            rules={[{ required: true }]}
-          >
-            <Select
-              options={objects.map((item) => ({
-                value: item.id,
-                label: item.name
-              }))}
-            />
-          </Form.Item>
-          <Form.Item
-            name="assignee_id"
-            label="Исполнитель"
-            rules={[{ required: true }]}
-          >
-            <Select
-              options={profiles
-                .filter((item) => item.role === 'executor')
-                .map((item) => ({ value: item.id, label: item.display_name }))}
-            />
-          </Form.Item>
+          <TaskFields profiles={profiles} objects={objects} />
         </Form>
       </Modal>
       <Modal
         forceRender
         title="Вернуть на доработку"
         open={revisionModal}
-        onCancel={() => setRevisionModal(false)}
+        onCancel={() => {
+          setRevisionModal(false)
+          revisionForm.resetFields()
+        }}
         onOk={() => revisionForm.submit()}
         confirmLoading={busy}
         okText="Вернуть"
+        cancelText="Отмена"
       >
         <Form
           form={revisionForm}

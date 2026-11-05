@@ -1,72 +1,11 @@
 import { privateApi } from './client'
-import type {
-  ObjectRecord,
-  Profile,
-  StatusHistory,
-  Task,
-  TaskStatus
-} from '@/lib/types'
+import type { StatusHistory, Task, TaskStatus } from '@/lib/types'
 
-export type ObjectInput = { name: string; address: string }
 export type TaskInput = {
   object_id: string
   title: string
   description: string
   assignee_id: string
-}
-
-export async function getCurrentProfile(): Promise<Profile> {
-  const { data } = await privateApi.post<Profile>('/rpc/current_profile', {})
-  if (!data?.id) throw new Error('У пользователя не назначена роль')
-  return data
-}
-
-export async function getProfiles(): Promise<Profile[]> {
-  const { data } = await privateApi.get<Profile[]>('/profiles', {
-    params: {
-      select: 'id,display_name,role,created_at',
-      order: 'display_name.asc'
-    }
-  })
-  return data
-}
-
-export async function getObjects(): Promise<ObjectRecord[]> {
-  const { data } = await privateApi.get<ObjectRecord[]>('/objects', {
-    params: { select: '*', order: 'created_at.desc' }
-  })
-  return data
-}
-
-export async function getObject(id: string): Promise<ObjectRecord | null> {
-  const { data } = await privateApi.get<ObjectRecord[]>('/objects', {
-    params: { select: '*', id: `eq.${id}`, limit: 1 }
-  })
-  return data[0] ?? null
-}
-
-export async function createObject(input: ObjectInput): Promise<ObjectRecord> {
-  const { data } = await privateApi.post<ObjectRecord>('/rpc/create_object', {
-    p_name: input.name,
-    p_address: input.address
-  })
-  return data
-}
-
-export async function updateObject(
-  id: string,
-  input: ObjectInput
-): Promise<ObjectRecord> {
-  const { data } = await privateApi.post<ObjectRecord>('/rpc/update_object', {
-    p_id: id,
-    p_name: input.name,
-    p_address: input.address
-  })
-  return data
-}
-
-export async function deleteObject(id: string): Promise<void> {
-  await privateApi.post('/rpc/delete_object', { p_id: id })
 }
 
 export async function getTasks(

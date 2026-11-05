@@ -6,10 +6,8 @@ import {
   Button,
   Card,
   Form,
-  Input,
   Modal,
   Popconfirm,
-  Select,
   Space,
   Spin,
   Table,
@@ -21,16 +19,16 @@ import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
 import { StatusTag } from '@/components/StatusTag'
+import { ObjectFields } from '@/components/forms/ObjectFields'
+import { TaskFields } from '@/components/forms/TaskFields'
 import {
-  createTask,
   deleteObject,
   getObject,
-  getProfiles,
-  getTasks,
   updateObject,
-  type ObjectInput,
-  type TaskInput
-} from '@/lib/api/crm'
+  type ObjectInput
+} from '@/lib/api/objects'
+import { getProfiles } from '@/lib/api/profiles'
+import { createTask, getTasks, type TaskInput } from '@/lib/api/tasks'
 import { errorMessage } from '@/lib/error'
 import { useAuthStore } from '@/lib/store/auth'
 import type { ObjectRecord, Profile, Task } from '@/lib/types'
@@ -54,7 +52,6 @@ export default function ObjectPage() {
   const [objectForm] = Form.useForm<ObjectInput>()
 
   const reload = async () => {
-    setLoading(true)
     try {
       const [nextObject, nextTasks, nextProfiles] = await Promise.all([
         getObject(id),
@@ -184,6 +181,9 @@ export default function ObjectPage() {
                   </Button>
                   <Popconfirm
                     title="Удалить объект и скрыть его задачи?"
+                    okText="Удалить"
+                    cancelText="Отмена"
+                    okButtonProps={{ danger: true }}
                     onConfirm={() => void removeObject()}
                   >
                     <Button danger>Удалить</Button>
@@ -211,16 +211,20 @@ export default function ObjectPage() {
           </>
         )
       )}
-      {error && <Alert type="error" message={error} showIcon />}
+      {error && <Alert type="error" title={error} showIcon />}
 
       <Modal
         forceRender
         title="Новая задача"
         open={taskModal}
-        onCancel={() => setTaskModal(false)}
+        onCancel={() => {
+          setTaskModal(false)
+          taskForm.resetFields()
+        }}
         onOk={() => taskForm.submit()}
         confirmLoading={saving}
         okText="Создать"
+        cancelText="Отмена"
       >
         <Form
           form={taskForm}
@@ -228,27 +232,7 @@ export default function ObjectPage() {
           onFinish={(values) => void saveTask(values)}
           initialValues={{ description: '' }}
         >
-          <Form.Item
-            name="title"
-            label="Название"
-            rules={[{ required: true, whitespace: true, max: 200 }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item name="description" label="Описание">
-            <Input.TextArea rows={4} />
-          </Form.Item>
-          <Form.Item
-            name="assignee_id"
-            label="Исполнитель"
-            rules={[{ required: true }]}
-          >
-            <Select
-              options={profiles
-                .filter((item) => item.role === 'executor')
-                .map((item) => ({ value: item.id, label: item.display_name }))}
-            />
-          </Form.Item>
+          <TaskFields profiles={profiles} />
         </Form>
       </Modal>
       <Modal
@@ -259,26 +243,14 @@ export default function ObjectPage() {
         onOk={() => objectForm.submit()}
         confirmLoading={saving}
         okText="Сохранить"
+        cancelText="Отмена"
       >
         <Form
           form={objectForm}
           layout="vertical"
           onFinish={(values) => void saveObject(values)}
         >
-          <Form.Item
-            name="name"
-            label="Название"
-            rules={[{ required: true, whitespace: true, max: 200 }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="address"
-            label="Адрес"
-            rules={[{ required: true, whitespace: true, max: 300 }]}
-          >
-            <Input />
-          </Form.Item>
+          <ObjectFields />
         </Form>
       </Modal>
     </AppShell>

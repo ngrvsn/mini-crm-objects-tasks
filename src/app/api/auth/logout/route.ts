@@ -10,7 +10,8 @@ import {
 } from '@/lib/auth/server'
 
 export async function POST(request: NextRequest) {
-  if (!checkOrigin(request)) return authError(403, 'Invalid origin')
+  if (!checkOrigin(request))
+    return authError(403, 'Недопустимый источник запроса')
   const cookie = getRefreshToken(request)
   if (!cookie) return clearRefreshCookie(NextResponse.json({ ok: true }))
 
@@ -28,6 +29,6 @@ export async function POST(request: NextRequest) {
     ) {
       return clearRefreshCookie(NextResponse.json({ ok: true }))
     }
-    return authError(503, 'Could not revoke session; retry logout')
+    return authError(503, 'Не удалось завершить сессию. Повторите выход')
   }
 }

@@ -2,13 +2,16 @@
 
 import { Alert, Button, Card, Form, Input, Typography } from 'antd'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { getCurrentProfile } from '@/lib/api/crm'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { getCurrentProfile } from '@/lib/api/profiles'
 import { login, logout } from '@/lib/auth/session'
 import { errorMessage } from '@/lib/error'
 import { useAuthStore } from '@/lib/store/auth'
 
 type LoginValues = { email: string; password: string }
+const subscribeToHydration = () => () => undefined
+const clientHydrated = () => true
+const serverHydrated = () => false
 
 export default function LoginPage() {
   const router = useRouter()
@@ -17,6 +20,11 @@ export default function LoginPage() {
   const setProfile = useAuthStore((state) => state.setProfile)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const ready = useSyncExternalStore(
+    subscribeToHydration,
+    clientHydrated,
+    serverHydrated
+  )
 
   useEffect(() => {
     if (status === 'authenticated')
@@ -47,12 +55,7 @@ export default function LoginPage() {
           Используйте выданные учётные данные.
         </Typography.Paragraph>
         {error && (
-          <Alert
-            type="error"
-            message={error}
-            showIcon
-            className="card-spacing"
-          />
+          <Alert type="error" title={error} showIcon className="card-spacing" />
         )}
         <Form<LoginValues> layout="vertical" onFinish={submit}>
           <Form.Item
@@ -69,7 +72,13 @@ export default function LoginPage() {
           >
             <Input.Password autoComplete="current-password" />
           </Form.Item>
-          <Button type="primary" htmlType="submit" loading={busy} block>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={busy}
+            disabled={!ready}
+            block
+          >
             Войти
           </Button>
         </Form>

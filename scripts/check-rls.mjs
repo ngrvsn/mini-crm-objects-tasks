@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import axios from 'axios'
 import { localSupabase } from './local-supabase.mjs'
 
-const { url, publishableKey } = localSupabase()
+const { url, publishableKey, serviceKey } = localSupabase()
 const password = 'LocalTestPassw0rd!'
 const auth = async (email) => {
   const { data } = await axios.post(
@@ -23,10 +23,15 @@ const client = (token) =>
   })
 const managerApi = client(manager.token)
 const workerApi = client(worker1.token)
+const worker2Api = client(worker2.token)
 const anonymousApi = axios.create({
   baseURL: `${url}/rest/v1`,
   headers: { apikey: publishableKey },
   validateStatus: () => true
+})
+const adminApi = axios.create({
+  baseURL: `${url}/rest/v1`,
+  headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
 })
 
 const managerTasks = (
@@ -40,6 +45,7 @@ assert(workerTasks.length > 0)
 assert(workerTasks.every((task) => task.assignee_id === worker1.id))
 assert(workerTasks.length < managerTasks.length)
 const workerObjects = (await workerApi.get('/objects?select=id')).data
+const managerObjects = (await managerApi.get('/objects?select=id')).data
 assert(
   workerObjects.every((object) =>
     workerTasks.some((task) => task.object_id === object.id)
@@ -47,8 +53,11 @@ assert(
 )
 
 const foreignTask = managerTasks.find((task) => task.assignee_id === worker2.id)
+const foreignObject = managerObjects.find(
+  (object) => !workerObjects.some((visible) => visible.id === object.id)
+)
 const ownTask = workerTasks.find((task) => task.status === 'in_progress')
-assert(foreignTask && ownTask)
+assert(foreignTask && foreignObject && ownTask)
 const history = (await workerApi.get('/task_status_history?select=task_id'))
   .data
 assert(
@@ -60,6 +69,41 @@ assert((await anonymousApi.get('/tasks?select=id')).status >= 400)
 assert(
   (await workerApi.get(`/tasks?select=id&id=eq.${foreignTask.id}`)).data
     .length === 0
+)
+assert.equal(
+  (await workerApi.get(`/objects?select=id&id=eq.${foreignObject.id}`)).data
+    .length,
+  0
+)
+assert.equal(
+  (
+    await workerApi.get(
+      `/task_status_history?select=id&task_id=eq.${foreignTask.id}`
+    )
+  ).data.length,
+  0
+)
+assert(
+  (
+    await workerApi.patch(`/profiles?id=eq.${worker1.id}`, {
+      role: 'manager'
+    })
+  ).status >= 400
+)
+assert.equal(
+  (await workerApi.get(`/profiles?select=role&id=eq.${worker1.id}`)).data[0]
+    .role,
+  'executor'
+)
+assert(
+  (
+    await workerApi.post('/tasks', {
+      object_id: ownTask.object_id,
+      title: 'Forbidden',
+      assignee_id: worker1.id,
+      created_by: worker1.id
+    })
+  ).status >= 400
 )
 assert(
   (
@@ -80,6 +124,19 @@ assert(
 assert(
   (await workerApi.patch(`/tasks?id=eq.${ownTask.id}`, { status: 'accepted' }))
     .status >= 400
+)
+assert(
+  (await managerApi.patch(`/tasks?id=eq.${ownTask.id}`, { status: 'accepted' }))
+    .status >= 400
+)
+assert((await workerApi.delete(`/tasks?id=eq.${ownTask.id}`)).status >= 400)
+assert(
+  (
+    await worker2Api.post('/rpc/transition_task', {
+      p_id: ownTask.id,
+      p_to_status: 'review'
+    })
+  ).status >= 400
 )
 assert(
   (
@@ -104,12 +161,23 @@ assert(
 )
 
 const review = managerTasks.find((task) => task.status === 'revision')
+const accepted = managerTasks.find((task) => task.status === 'accepted')
 assert(review)
+assert(accepted)
 assert(
   (
     await managerApi.post('/rpc/transition_task', {
       p_id: review.id,
       p_to_status: 'accepted'
+    })
+  ).status >= 400
+)
+assert(
+  (
+    await managerApi.post('/rpc/transition_task', {
+      p_id: accepted.id,
+      p_to_status: 'revision',
+      p_comment: 'Forbidden'
     })
   ).status >= 400
 )
@@ -169,5 +237,18 @@ assert.deepEqual(
   ['new', 'in_progress', 'review', 'revision']
 )
 assert.equal(testHistory.at(-1).comment, 'Исправить отчёт')
+assert.equal(
+  (await managerApi.post('/rpc/delete_task', { p_id: testId })).status,
+  200
+)
+assert.equal(
+  (await adminApi.get(`/task_status_history?select=id&task_id=eq.${testId}`))
+    .data.length,
+  4
+)
+assert(
+  (await adminApi.get(`/tasks?select=deleted_at&id=eq.${testId}`)).data[0]
+    .deleted_at
+)
 
 console.log('Direct Data API security checks passed')
