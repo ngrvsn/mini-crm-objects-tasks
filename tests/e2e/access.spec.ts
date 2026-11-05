@@ -128,6 +128,59 @@ test('вход и выход синхронизируются между вкл�
   }
 })
 
+test('старый отказ refresh не сбрасывает новый успешный вход', async ({
+  browser
+}) => {
+  const context = await browser.newContext()
+  await context.addCookies([
+    {
+      name: 'crm-refresh',
+      value: 'expired',
+      domain: '127.0.0.1',
+      path: '/api/auth',
+      httpOnly: true,
+      sameSite: 'Strict'
+    }
+  ])
+  const page = await context.newPage()
+  let releaseRefresh: () => void = () => undefined
+  let refreshRequested: () => void = () => undefined
+  const holdRefresh = new Promise<void>((resolve) => {
+    releaseRefresh = resolve
+  })
+  const requestSeen = new Promise<void>((resolve) => {
+    refreshRequested = resolve
+  })
+  try {
+    await page.route('**/api/auth/refresh', async (route) => {
+      refreshRequested()
+      await holdRefresh
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Сессия истекла' })
+      })
+    })
+    await page.goto('/login')
+    await requestSeen
+    await page.getByLabel('Email').fill('manager1@example.test')
+    await page.getByLabel('Пароль').fill(password)
+    await page.getByRole('button', { name: 'Войти' }).click()
+    await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible()
+    const refreshResponse = page.waitForResponse((response) =>
+      response.url().includes('/api/auth/refresh')
+    )
+    releaseRefresh()
+    expect((await refreshResponse).status()).toBe(401)
+    await page.waitForTimeout(300)
+    await expect(page).toHaveURL(/\/objects$/)
+    await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible()
+  } finally {
+    releaseRefresh()
+    await context.close()
+  }
+})
+
 test('поздний ответ профиля не возвращает сессию после выхода', async ({
   browser
 }) => {

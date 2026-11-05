@@ -50,7 +50,12 @@ async function runRefresh(): Promise<string | null> {
     }
     return await request()
   } catch (error) {
-    if (isAxiosError(error) && error.response?.status === 401)
+    // A refresh started before a new login cannot invalidate that login.
+    if (
+      epoch === sessionEpoch &&
+      isAxiosError(error) &&
+      error.response?.status === 401
+    )
       clearAccessToken()
     throw error
   }
