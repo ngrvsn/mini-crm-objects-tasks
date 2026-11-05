@@ -3,6 +3,7 @@ import { AntdRegistry } from '@ant-design/nextjs-registry'
 import { App as AntdApp, ConfigProvider } from 'antd'
 import ruRU from 'antd/locale/ru_RU'
 import { AuthProvider } from '@/components/AuthProvider'
+import { ToastHost } from '@/components/ToastHost'
 import './styles.css'
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({
           >
             <AntdApp>
               <AuthProvider>{children}</AuthProvider>
+              <ToastHost />
             </AntdApp>
           </ConfigProvider>
         </AntdRegistry>

@@ -36,12 +36,13 @@ PY
   fi
 fi
 
-image=$(sed -n 's/^CRM_IMAGE=//p' "$app_dir/.env" | tr -d '\r')
 docker compose --project-directory "$app_dir" --env-file "$app_dir/.env" \
   -f "$app_dir/compose.yml" down --remove-orphans
-if [[ "$image" == mini-crm:* ]]; then
-  docker image rm "$image" || true
-fi
+while IFS= read -r image; do
+  if [[ "$image" == mini-crm:* ]]; then
+    docker image rm "$image" || true
+  fi
+done < <(docker image ls mini-crm --format '{{.Repository}}:{{.Tag}}')
 cd /
 rm -rf -- "$app_dir"
 echo 'CRM container, image, Caddy route and app files removed; Minecraft untouched'

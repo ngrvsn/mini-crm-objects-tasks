@@ -68,7 +68,9 @@ const managerUser = await authenticate(manager)
 const worker1 = await authenticate(workers[0])
 const worker2 = await authenticate(workers[1])
 const managerTasks = (
-  await managerUser.api.get('/tasks?select=id,assignee_id,status,object_id')
+  await managerUser.api.get(
+    '/tasks?select=id,assignee_id,status,object_id,title,description'
+  )
 ).data
 const worker1Tasks = (
   await worker1.api.get('/tasks?select=id,assignee_id,status,object_id')
@@ -77,6 +79,19 @@ const worker2Tasks = (
   await worker2.api.get('/tasks?select=id,assignee_id,status,object_id')
 ).data
 assert(managerTasks.length >= 2 && worker1Tasks.length && worker2Tasks.length)
+const accepted = managerTasks.find((task) => task.status === 'accepted')
+assert(accepted)
+assert(
+  (
+    await managerUser.api.post('/rpc/update_task', {
+      p_id: accepted.id,
+      p_object_id: accepted.object_id,
+      p_title: accepted.title,
+      p_description: accepted.description,
+      p_assignee_id: accepted.assignee_id
+    })
+  ).status >= 400
+)
 assert(worker1Tasks.every((task) => task.assignee_id === worker1.id))
 assert(worker2Tasks.every((task) => task.assignee_id === worker2.id))
 const foreign = worker2Tasks[0]

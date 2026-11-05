@@ -71,6 +71,7 @@ test('постановщик и два исполнителя проходят �
     )
     await worker1.getByRole('button', { name: 'Взять в работу' }).click()
     await expect(worker1.getByText('В работе').first()).toBeVisible()
+    await expect(worker1.getByText('Новый статус: В работе')).toBeVisible()
     await worker1.reload()
     await expect(
       worker1.getByRole('button', { name: 'Отправить на проверку' })
@@ -79,8 +80,20 @@ test('постановщик и два исполнителя проходят �
     await expect(worker1.getByText('На проверке').first()).toBeVisible()
 
     await manager.goto(taskOneUrl)
+    await manager.getByRole('button', { name: 'Изменить' }).click()
+    const editTaskDialog = manager.getByRole('dialog')
+    await editTaskDialog.getByLabel('Описание').fill('Исправленное описание')
+    await editTaskDialog.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(manager.locator('span.task-description')).toHaveText(
+      'Исправленное описание'
+    )
     await manager.getByRole('button', { name: 'Принять' }).click()
     await expect(manager.getByText('Принята').first()).toBeVisible()
+    await expect(
+      manager.getByRole('button', { name: 'Изменить' })
+    ).toBeDisabled()
+    await manager.getByTestId('edit-task-tooltip').hover()
+    await expect(manager.getByRole('tooltip')).toHaveText('Задача уже принята')
     await expect(manager.getByRole('button', { name: 'Принять' })).toHaveCount(
       0
     )
@@ -158,13 +171,9 @@ test('постановщик и два исполнителя проходят �
     await expect(worker2.getByRole('button', { name: 'Войти' })).toBeVisible()
 
     await manager.goto(taskOneUrl)
-    await manager.getByRole('button', { name: 'Изменить' }).click()
-    const editTaskDialog = manager.getByRole('dialog')
-    await editTaskDialog.getByLabel('Описание').fill('Исправленное описание')
-    await editTaskDialog.getByRole('button', { name: 'Сохранить' }).click()
-    await expect(manager.locator('span.task-description')).toHaveText(
-      'Исправленное описание'
-    )
+    await expect(
+      manager.getByRole('button', { name: 'Изменить' })
+    ).toBeDisabled()
     await manager.getByRole('button', { name: 'Удалить' }).click()
     await manager
       .locator('.ant-popconfirm')

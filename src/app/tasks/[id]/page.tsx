@@ -13,11 +13,13 @@ import {
   Space,
   Spin,
   Timeline,
+  Tooltip,
   Typography
 } from 'antd'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import { AppShell } from '@/components/AppShell'
 import { StatusTag } from '@/components/StatusTag'
 import { TaskFields } from '@/components/forms/TaskFields'
@@ -114,7 +116,7 @@ export default function TaskPage() {
       await transitionTask(id, nextStatus, comment)
       setRevisionModal(false)
       revisionForm.resetFields()
-      message.success(`Статус: ${statusLabels[nextStatus]}`)
+      toast.success(`Новый статус: ${statusLabels[nextStatus]}`)
       await reload()
     } catch (caught) {
       message.error(errorMessage(caught))
@@ -161,19 +163,30 @@ export default function TaskPage() {
               <Typography.Title level={1}>{task.title}</Typography.Title>
               {profile?.role === 'manager' && (
                 <Space>
-                  <Button
-                    onClick={() => {
-                      editForm.setFieldsValue({
-                        title: task.title,
-                        description: task.description,
-                        object_id: task.object_id,
-                        assignee_id: task.assignee_id
-                      })
-                      setEditing(true)
-                    }}
+                  <Tooltip
+                    title={
+                      task.status === 'accepted'
+                        ? 'Задача уже принята'
+                        : undefined
+                    }
                   >
-                    Изменить
-                  </Button>
+                    <span data-testid="edit-task-tooltip">
+                      <Button
+                        disabled={task.status === 'accepted'}
+                        onClick={() => {
+                          editForm.setFieldsValue({
+                            title: task.title,
+                            description: task.description,
+                            object_id: task.object_id,
+                            assignee_id: task.assignee_id
+                          })
+                          setEditing(true)
+                        }}
+                      >
+                        Изменить
+                      </Button>
+                    </span>
+                  </Tooltip>
                   <Popconfirm
                     title="Удалить задачу? История сохранится."
                     okText="Удалить"

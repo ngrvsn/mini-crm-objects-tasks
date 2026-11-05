@@ -677,3 +677,36 @@ test('второй постановщик видит все объекты и м
   await expect(page.getByText('На доработке').first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Принять' })).toHaveCount(0)
 })
+
+test('подсказка адреса заполняет поле, ручной ввод остаётся доступен', async ({
+  page
+}) => {
+  await page.route('https://photon.komoot.io/api/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        features: [
+          {
+            properties: {
+              country: 'Россия',
+              state: 'Москва',
+              city: 'Москва',
+              street: 'Тверская улица',
+              housenumber: '1'
+            }
+          }
+        ]
+      })
+    })
+  })
+  await signIn(page, 'manager1@example.test')
+  await page.getByRole('button', { name: 'Новый объект' }).click()
+  const dialog = page.getByRole('dialog')
+  const address = dialog.getByLabel('Адрес')
+  await address.fill('Москва Тверская')
+  await page.getByText('Россия, Москва, Тверская улица, 1').last().click()
+  await expect(address).toHaveValue('Россия, Москва, Тверская улица, 1')
+  await address.fill('Адрес стройплощадки, введённый вручную')
+  await expect(address).toHaveValue('Адрес стройплощадки, введённый вручную')
+})

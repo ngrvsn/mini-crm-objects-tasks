@@ -35,7 +35,9 @@ const adminApi = axios.create({
 })
 
 const managerTasks = (
-  await managerApi.get('/tasks?select=id,assignee_id,status,object_id')
+  await managerApi.get(
+    '/tasks?select=id,assignee_id,status,object_id,title,description'
+  )
 ).data
 const workerTasks = (
   await workerApi.get('/tasks?select=id,assignee_id,status,object_id')
@@ -164,6 +166,17 @@ const review = managerTasks.find((task) => task.status === 'revision')
 const accepted = managerTasks.find((task) => task.status === 'accepted')
 assert(review)
 assert(accepted)
+assert(
+  (
+    await managerApi.post('/rpc/update_task', {
+      p_id: accepted.id,
+      p_object_id: accepted.object_id,
+      p_title: accepted.title,
+      p_description: accepted.description,
+      p_assignee_id: accepted.assignee_id
+    })
+  ).status >= 400
+)
 assert(
   (
     await managerApi.post('/rpc/transition_task', {
