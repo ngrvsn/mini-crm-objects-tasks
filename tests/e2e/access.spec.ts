@@ -10,10 +10,31 @@ async function signIn(page: Page, email: string) {
   await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible()
 }
 
+function waitForAuthEvent(page: Page, type: 'login' | 'logout') {
+  return page.evaluate(
+    (expected) =>
+      new Promise<void>((resolve) => {
+        const onChange = (event: Event) => {
+          if ((event as CustomEvent<string>).detail !== expected) return
+          window.removeEventListener('crm-auth-change', onChange)
+          resolve()
+        }
+        window.addEventListener('crm-auth-change', onChange)
+      }),
+    type
+  )
+}
+
 test('вход, восстановление, защита cookie и выход', async ({
   page,
   context
 }) => {
+  const loginResponse = await context.request.get('/login')
+  expect(loginResponse.headers()['x-frame-options']).toBe('DENY')
+  expect(loginResponse.headers()['x-content-type-options']).toBe('nosniff')
+  expect(loginResponse.headers()['content-security-policy']).toContain(
+    "frame-ancestors 'none'"
+  )
   await page.goto('/objects')
   await expect(page).toHaveURL(/\/login$/)
   await page.screenshot({ path: 'test-results/login.png', fullPage: true })
@@ -54,10 +75,12 @@ test('вход, восстановление, защита cookie и выход'
     /access_token|refresh_token|eyJ[A-Za-z0-9_-]{20}/
   )
 
-  const rejected = await context.request.post('/api/auth/refresh', {
-    headers: { Origin: 'https://attacker.example' }
-  })
-  expect(rejected.status()).toBe(403)
+  for (const route of ['login', 'refresh', 'logout']) {
+    const rejected = await context.request.post(`/api/auth/${route}`, {
+      headers: { Origin: 'https://attacker.example' }
+    })
+    expect(rejected.status()).toBe(403)
+  }
   await page.reload()
   await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible()
   await page.goto('/my-tasks')
@@ -101,6 +124,82 @@ test('вход и выход синхронизируются между вкл�
       (await context.cookies()).some((item) => item.name === 'crm-refresh')
     ).toBe(false)
   } finally {
+    await context.close()
+  }
+})
+
+test('поздний ответ профиля не возвращает сессию после выхода', async ({
+  browser
+}) => {
+  const context = await browser.newContext()
+  const first = await context.newPage()
+  const second = await context.newPage()
+  let releaseProfile: () => void = () => undefined
+  let profileRequested: () => void = () => undefined
+  const holdProfile = new Promise<void>((resolve) => {
+    releaseProfile = resolve
+  })
+  const requestSeen = new Promise<void>((resolve) => {
+    profileRequested = resolve
+  })
+  try {
+    await first.goto('/login')
+    await second.goto('/login')
+    await second.route('**/rest/v1/rpc/current_profile', async (route) => {
+      profileRequested()
+      await holdProfile
+      await route.continue()
+    })
+    await signIn(first, 'manager1@example.test')
+    await requestSeen
+    const logoutSeen = waitForAuthEvent(second, 'logout')
+    await first.getByRole('button', { name: 'Выйти' }).click()
+    await logoutSeen
+    const profileResponse = second.waitForResponse((response) =>
+      response.url().includes('/rpc/current_profile')
+    )
+    releaseProfile()
+    expect((await profileResponse).ok()).toBe(true)
+    await second.waitForTimeout(300)
+    await expect(second).toHaveURL(/\/login$/)
+    await expect(second.getByRole('button', { name: 'Выйти' })).toHaveCount(0)
+  } finally {
+    releaseProfile()
+    await context.close()
+  }
+})
+
+test('ожидающий вход не восстанавливает сессию после выхода в другой вкладке', async ({
+  browser
+}) => {
+  const context = await browser.newContext()
+  const first = await context.newPage()
+  const second = await context.newPage()
+  let releaseProfile: () => void = () => undefined
+  const holdProfile = new Promise<void>((resolve) => {
+    releaseProfile = resolve
+  })
+  try {
+    await first.goto('/login')
+    await second.goto('/login')
+    await first.route('**/rest/v1/rpc/current_profile', async (route) => {
+      await holdProfile
+      await route.continue()
+    })
+    await first.getByLabel('Email').fill('manager1@example.test')
+    await first.getByLabel('Пароль').fill(password)
+    await first.getByRole('button', { name: 'Войти' }).click()
+    await expect(second.getByRole('button', { name: 'Выйти' })).toBeVisible()
+
+    const logoutSeen = waitForAuthEvent(first, 'logout')
+    await second.getByRole('button', { name: 'Выйти' }).click()
+    await logoutSeen
+    releaseProfile()
+    await expect(first.getByRole('button', { name: 'Войти' })).toBeEnabled()
+    await expect(first).toHaveURL(/\/login$/)
+    await expect(first.getByRole('button', { name: 'Выйти' })).toHaveCount(0)
+  } finally {
+    releaseProfile()
     await context.close()
   }
 })

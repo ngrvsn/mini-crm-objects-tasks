@@ -4,7 +4,7 @@ import { Alert, Button, Card, Form, Input, Typography } from 'antd'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { getCurrentProfile } from '@/lib/api/profiles'
-import { login, logout } from '@/lib/auth/session'
+import { getSessionEpoch, login, logout } from '@/lib/auth/session'
 import { errorMessage } from '@/lib/error'
 import { useAuthStore } from '@/lib/store/auth'
 
@@ -34,13 +34,17 @@ export default function LoginPage() {
   const submit = async ({ email, password }: LoginValues) => {
     setBusy(true)
     setError(null)
+    let loginEpoch: number | null = null
     try {
       await login(email, password)
+      loginEpoch = getSessionEpoch()
       const profile = await getCurrentProfile()
+      if (getSessionEpoch() !== loginEpoch) return
       setProfile(profile)
       router.replace(profile.role === 'executor' ? '/my-tasks' : '/objects')
     } catch (caught) {
-      await logout()
+      if (loginEpoch !== null && getSessionEpoch() !== loginEpoch) return
+      if (loginEpoch !== null) await logout()
       setError(errorMessage(caught))
     } finally {
       setBusy(false)

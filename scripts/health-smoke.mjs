@@ -30,6 +30,17 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 1000))
   }
   if (!healthy) throw new Error('Healthcheck did not return status ok')
+  const login = await fetch('http://127.0.0.1:3100/login')
+  if (
+    !login.ok ||
+    login.headers.get('x-frame-options') !== 'DENY' ||
+    login.headers.get('x-content-type-options') !== 'nosniff' ||
+    !login.headers
+      .get('content-security-policy')
+      ?.includes("frame-ancestors 'none'")
+  ) {
+    throw new Error('Production security headers are missing')
+  }
   console.log('Final runtime and Supabase healthcheck passed')
 } finally {
   app.kill()

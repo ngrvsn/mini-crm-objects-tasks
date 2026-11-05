@@ -23,6 +23,7 @@ const emit = (type: 'login' | 'logout') => {
 }
 
 export const getAccessToken = () => accessToken
+export const getSessionEpoch = () => sessionEpoch
 
 export function clearAccessToken(broadcast = false) {
   sessionEpoch += 1

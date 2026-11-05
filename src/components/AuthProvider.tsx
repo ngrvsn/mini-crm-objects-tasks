@@ -11,20 +11,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true
+    let generation = 0
     const load = async () => {
+      const currentGeneration = ++generation
       try {
         if (!(await bootstrapSession())) {
-          if (mounted) setAnonymous()
+          if (mounted && currentGeneration === generation) setAnonymous()
           return
         }
         const profile = await getCurrentProfile()
-        if (mounted) setProfile(profile)
+        if (mounted && currentGeneration === generation) setProfile(profile)
       } catch {
-        if (mounted) setAnonymous()
+        if (mounted && currentGeneration === generation) setAnonymous()
       }
     }
     const onChange = (event: Event) => {
       if ((event as CustomEvent<string>).detail === 'logout') {
+        generation += 1
         setAnonymous()
       } else {
         void load()
@@ -35,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void load()
     return () => {
       mounted = false
+      generation += 1
       window.removeEventListener('crm-auth-change', onChange)
       dispose()
     }
