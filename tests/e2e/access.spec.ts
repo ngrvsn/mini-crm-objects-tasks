@@ -330,6 +330,108 @@ test('исполнитель видит только свои объекты и 
   }
 })
 
+test('карточки и формы помещаются на экране шириной 320 px', async ({
+  browser
+}) => {
+  const managerContext = await browser.newContext({
+    viewport: { width: 320, height: 700 }
+  })
+  const workerContext = await browser.newContext({
+    viewport: { width: 320, height: 700 }
+  })
+  const manager = await managerContext.newPage()
+  const worker = await workerContext.newPage()
+  const expectNoOverflow = async (page: Page) => {
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth)
+    ).toBeLessThanOrEqual(320)
+  }
+  try {
+    await signIn(manager, 'manager1@example.test')
+    await expectNoOverflow(manager)
+    await manager.getByRole('button', { name: 'Новый объект' }).click()
+    await expect(manager.getByRole('dialog').getByLabel('Адрес')).toBeVisible()
+    await expectNoOverflow(manager)
+    await manager
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Отмена' })
+      .click()
+    await manager.getByRole('link', { name: 'ЖК Северный' }).click()
+    await expect(
+      manager.getByRole('heading', { name: 'ЖК Северный' })
+    ).toBeVisible()
+    await expectNoOverflow(manager)
+    await manager.screenshot({
+      path: 'test-results/mobile-object-card.png',
+      fullPage: true
+    })
+    await manager.getByRole('button', { name: 'Изменить' }).click()
+    await expect(manager.getByRole('dialog').getByLabel('Адрес')).toBeVisible()
+    await expectNoOverflow(manager)
+    await manager
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Отмена' })
+      .click()
+    const taskScroller = manager.locator('.ant-table-content')
+    expect(
+      await taskScroller.evaluate(
+        (element) => element.scrollWidth > element.clientWidth
+      )
+    ).toBe(true)
+    await taskScroller.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth
+    })
+    await expect(
+      manager.getByRole('columnheader', { name: 'Создана' })
+    ).toBeInViewport()
+    await taskScroller.evaluate((element) => {
+      element.scrollLeft = 0
+    })
+    await manager.getByRole('button', { name: 'Новая задача' }).click()
+    const taskDialog = manager.getByRole('dialog')
+    await expect(taskDialog.getByLabel('Исполнитель')).toBeVisible()
+    await expectNoOverflow(manager)
+    await taskDialog.getByRole('button', { name: 'Отмена' }).click()
+    await manager.getByRole('link', { name: 'Проверить фундамент' }).click()
+    await expect(manager.getByText('История статусов')).toBeVisible()
+    await expectNoOverflow(manager)
+    await manager.screenshot({
+      path: 'test-results/mobile-task-card.png',
+      fullPage: true
+    })
+    await manager.getByRole('button', { name: 'Изменить' }).click()
+    await expect(manager.getByRole('dialog').getByLabel('Объект')).toBeVisible()
+    await expectNoOverflow(manager)
+
+    await signIn(worker, 'worker1@example.test')
+    await expect(
+      worker.getByRole('heading', { name: 'Мои задачи' })
+    ).toBeVisible()
+    await expect(
+      worker.getByRole('link', { name: 'Проверить фундамент' })
+    ).toBeVisible()
+    await expect(worker.locator('.ant-spin-blur')).toHaveCount(0)
+    await expect(worker.locator('.ant-spin-container')).toHaveCSS(
+      'opacity',
+      '1'
+    )
+    await worker.waitForTimeout(400)
+    await expectNoOverflow(worker)
+    await worker.screenshot({
+      path: 'test-results/mobile-my-tasks.png',
+      fullPage: true
+    })
+    await worker.getByRole('link', { name: 'Проверить фундамент' }).click()
+    await expect(
+      worker.getByRole('heading', { name: 'Проверить фундамент' })
+    ).toBeVisible()
+    await expectNoOverflow(worker)
+  } finally {
+    await managerContext.close()
+    await workerContext.close()
+  }
+})
+
 test('второй постановщик видит все объекты и может управлять задачами', async ({
   page
 }) => {

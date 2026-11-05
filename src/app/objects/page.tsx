@@ -160,6 +160,7 @@ export default function ObjectsPage() {
         dataSource={objects}
         loading={loading}
         pagination={{ pageSize: 10 }}
+        scroll={{ x: 'max-content' }}
       />
       <Modal
         forceRender

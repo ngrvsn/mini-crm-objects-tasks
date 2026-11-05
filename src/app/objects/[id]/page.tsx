@@ -206,6 +206,7 @@ export default function ObjectPage() {
                 columns={columns}
                 dataSource={tasks}
                 pagination={{ pageSize: 10 }}
+                scroll={{ x: 'max-content' }}
               />
             </Card>
           </>

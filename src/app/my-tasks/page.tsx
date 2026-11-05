@@ -93,6 +93,7 @@ export default function MyTasksPage() {
             dataSource={tasks}
             loading={loading}
             pagination={{ pageSize: 10 }}
+            scroll={{ x: 'max-content' }}
           />
         </>
       )}
