@@ -1,0 +1,36 @@
+# Мини-CRM «Объекты и задачи»
+
+Next.js + TypeScript + Ant Design + Axios + Zustand + Supabase. Постановщики управляют строительными объектами и задачами; исполнители видят только назначенную им работу и проводят задачи через разрешённые статусы.
+
+## Запуск
+
+Нужны Node.js 20.9+, pnpm 9 и Docker для локального Supabase.
+
+1. `pnpm install`
+2. Скопировать `.env.example` в `.env.local`. Указать URL проекта и **publishable key**. Пароль БД и secret/service_role key в этот файл и во фронтенд не добавлять.
+3. `pnpm exec supabase start -x studio,postgres-meta,storage-api,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,mailpit` — поднимет одноразовую локальную базу и применит миграции.
+4. `pnpm seed:local` — создаст локально двух постановщиков и двух исполнителей, три объекта и задачи в разных статусах. Пароль локальных пользователей `LocalTestPassw0rd!`; email: `manager1@example.test`, `manager2@example.test`, `worker1@example.test`, `worker2@example.test`. Эти данные **только для локального стенда**.
+5. Для работы с локальным стендом укажите его `API_URL` и `PUBLISHABLE_KEY` из `pnpm exec supabase status -o env` в `.env.local`, затем `pnpm dev`. Для облачного проекта оставьте параметры из панели Supabase.
+
+`pnpm test:coverage`, `pnpm db:test`, `pnpm test:security` и `pnpm test:e2e` проверяют интерфейс, права доступа и прямой Data API. E2E сам запускает приложение с локальными параметрами Supabase; перед ним должны работать локальный Supabase и `pnpm seed:local`. На Windows E2E использует установленный Edge, в CI — Chromium. `pnpm build` проверяет production-сборку.
+
+## Облачный проект
+
+В Supabase должны быть включены Data API и RLS, выключены автоматические права для новых таблиц и **Allow new users to sign up**. Миграции хранятся в `supabase/migrations/` и добавляют только CRM-схему. Облачную базу **не сбрасывать**. Перед применением новых миграций проверить их через `supabase db push --remote=<connection-string> --dry-run`; затем применить через CLI. Текущая начальная миграция уже применена к созданному проекту.
+
+В `Authentication → Users → Add user` вручную создайте пользователей с подтверждённым email. Роли назначаются только администратором базы в `public.profiles`, например:
+
+```sql
+insert into public.profiles (id, display_name, role)
+select id, 'Руководитель', 'manager' from auth.users where email = 'manager@example.com';
+```
+
+Для исполнителей используйте роль `executor`. После назначения ролей постановщик создаёт объекты и задачи через интерфейс. Никакого маршрута саморегистрации или изменения роли пользователем нет. Секреты не коммитить; для серверного запуска нужны `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `APP_ORIGIN` и публичные `NEXT_PUBLIC_*` из `.env.example`.
+
+## Защита данных
+
+RLS ограничивает чтение строк. У браузерной роли нет прямых прав на изменение таблиц. Запись идёт через функции PostgreSQL, которые повторно проверяют роль и назначение, а статус и история изменяются одной транзакцией. История не удаляется вместе с объектом или задачей. Access token находится только в памяти вкладки, refresh token — в HttpOnly cookie, выдаваемой Next.js. `service_role` не используется приложением.
+
+## Текущее состояние сдачи
+
+Код, миграции и проверки готовы локально. GitHub-репозиторий и серверное приложение будут опубликованы после входа в GitHub и получения сервера. Для облачной демонстрации осталось создать тестовых пользователей и наполнить их проект данными. См. [решения и допущения](DECISIONS.md) и [объяснение для руководителя](FOR_MANAGER.md).

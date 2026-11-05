@@ -1,0 +1,58 @@
+{
+  "name": "mini-crm-objects-tasks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:security": "node scripts/check-rls.mjs",
+    "seed:local": "node scripts/seed-local.mjs",
+    "db:test": "supabase test db",
+    "audit": "pnpm audit --audit-level high",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@ant-design/nextjs-registry": "1.3.0",
+    "antd": "6.7.0",
+    "axios": "1.21.0",
+    "next": "16.4.5",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zustand": "5.0.16"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "24.6.0",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitest/coverage-v8": "5.1.0",
+    "eslint": "9.35.0",
+    "eslint-config-next": "16.4.5",
+    "husky": "9.1.7",
+    "jsdom": "27.1.0",
+    "prettier": "3.9.10",
+    "supabase": "3.0.0",
+    "typescript": "5.9.3",
+    "vitest": "5.1.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "minimatch@>=7.0.0 <11.0.1": ">=11.0.1"
+    }
+  }
+}
