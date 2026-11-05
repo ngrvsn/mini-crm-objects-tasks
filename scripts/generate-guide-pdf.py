@@ -1,7 +1,6 @@
 """Build the one-page, nontechnical CRM handout and its public download copy."""
 
 from pathlib import Path
-from shutil import copyfile
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -23,9 +22,7 @@ from reportlab.platypus import (
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "output" / "pdf" / "mini-crm-guide.pdf"
-PUBLIC = ROOT / "public" / "mini-crm-guide.pdf"
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-PUBLIC.parent.mkdir(parents=True, exist_ok=True)
 
 font_pairs = [
     (Path(r"C:\Windows\Fonts\arial.ttf"), Path(r"C:\Windows\Fonts\arialbd.ttf")),
@@ -189,5 +186,4 @@ document = SimpleDocTemplate(
     author="Мини-CRM",
 )
 document.build(story, onFirstPage=footer, onLaterPages=footer)
-copyfile(OUTPUT, PUBLIC)
 print(OUTPUT)

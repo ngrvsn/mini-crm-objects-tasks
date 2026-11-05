@@ -20,7 +20,7 @@ GitHub Actions запускает полный набор проверок пр�
 
 CRM работает по адресу [https://120nmine.tech/crm](https://120nmine.tech/crm), healthcheck — [https://120nmine.tech/crm/api/health](https://120nmine.tech/crm/api/health). Это отдельный контейнер `crm-app` и отдельный Compose проект в `/opt/mini-crm-objects-tasks`; существующие сервисы Minecraft и его PostgreSQL не менялись. В Caddy добавлен только маршрут `/crm` и `/crm/*`. Образ собирается локально через `Dockerfile` с `CRM_BASE_PATH=/crm` и публичным ключом Supabase; на сервер попадает только publishable key. `APP_ORIGIN` на сервере — `https://120nmine.tech`.
 
-В шапке приложения есть кнопка «Инструкция» с вкладками «Я заказчик» и «Я исполнитель». [Памятка PDF](output/pdf/mini-crm-guide.pdf) объясняет работу и защиту данных без технических терминов; внутри CRM она доступна для скачивания.
+В шапке приложения есть кнопка «Инструкция» с вкладками «Я заказчик» и «Я исполнитель». Отдельная [памятка PDF](output/pdf/mini-crm-guide.pdf) объясняет работу и защиту данных без технических терминов.
 
 Перед очередным ручным обновлением: дождаться зелёного CI, собрать образ с теми же build args, передать его в `/opt/mini-crm-objects-tasks`, выполнить `docker load`, обновить `CRM_IMAGE` в `.env` и запустить `docker compose --project-directory /opt/mini-crm-objects-tasks --env-file /opt/mini-crm-objects-tasks/.env -f /opt/mini-crm-objects-tasks/compose.yml up -d`. Проверить `/crm/api/health` и браузерный сценарий. При переустановке Minecraft сайта, если его Caddyfile был заменён, повторно выполнить `/opt/mini-crm-objects-tasks/install-route.sh`.
 

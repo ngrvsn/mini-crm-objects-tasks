@@ -68,15 +68,7 @@ export function GuideModal({
       open={open}
       onCancel={onClose}
       width={680}
-      footer={
-        <a
-          href={`${process.env.NEXT_PUBLIC_CRM_BASE_PATH ?? ''}/mini-crm-guide.pdf`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Скачать памятку PDF
-        </a>
-      }
+      footer={null}
     >
       <Tabs
         defaultActiveKey={role === 'manager' ? 'manager' : 'executor'}

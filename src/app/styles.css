@@ -121,9 +121,6 @@ body {
   .app-header {
     padding: 0 12px;
   }
-  .app-header-role {
-    display: none;
-  }
   .guide-button-label {
     display: none;
   }

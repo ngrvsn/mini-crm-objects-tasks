@@ -713,7 +713,7 @@ test('подсказка адреса заполняет поле, ручной 
   await expect(address).toHaveValue('Адрес стройплощадки, введённый вручную')
 })
 
-test('инструкция открывается для обеих ролей и PDF доступен', async ({
+test('инструкция открывается для обеих ролей без ссылки на PDF', async ({
   browser
 }) => {
   const managerContext = await browser.newContext()
@@ -724,6 +724,9 @@ test('инструкция открывается для обеих ролей �
   const worker = await workerContext.newPage()
   try {
     await signIn(manager, 'manager1@example.test')
+    await expect(
+      manager.locator('.app-header').getByText('Постановщик 1', { exact: true })
+    ).toHaveCount(1)
     await manager.getByRole('button', { name: 'Инструкция' }).click()
     const managerGuide = manager.getByRole('dialog', {
       name: 'Как пользоваться мини-CRM'
@@ -740,9 +743,9 @@ test('инструкция открывается для обеих ролей �
         exact: false
       })
     ).toBeVisible()
-    const pdf = await managerContext.request.get('/mini-crm-guide.pdf')
-    expect(pdf.status()).toBe(200)
-    expect(pdf.headers()['content-type']).toContain('application/pdf')
+    await expect(
+      managerGuide.getByRole('link', { name: 'Скачать памятку PDF' })
+    ).toHaveCount(0)
 
     await signIn(worker, 'worker1@example.test')
     await worker.getByRole('button', { name: 'Инструкция' }).click()

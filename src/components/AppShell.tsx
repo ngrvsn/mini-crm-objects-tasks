@@ -67,9 +67,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Typography.Text>
           </div>
           <Space className="app-header-actions">
-            <Typography.Text type="secondary" className="app-header-role">
-              {profile.role === 'manager' ? 'Постановщик' : 'Исполнитель'}
-            </Typography.Text>
             <Button aria-label="Инструкция" onClick={() => setGuideOpen(true)}>
               <span className="guide-button-label">Инструкция</span>
               <span className="guide-button-icon" aria-hidden="true">
