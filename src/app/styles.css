@@ -67,6 +67,9 @@ body {
   justify-content: center;
   align-items: center;
 }
+.app-content .centered {
+  min-height: min(55vh, 440px);
+}
 .page-heading {
   display: flex;
   justify-content: space-between;
