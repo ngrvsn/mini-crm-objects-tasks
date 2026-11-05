@@ -55,15 +55,19 @@ function AddressField({
         const { data } = await axios.get<{ features: PhotonFeature[] }>(
           'https://photon.komoot.io/api/',
           {
-            params: { q: query, limit: 5 },
+            params: { q: query, limit: 5, lang: 'default', countrycode: 'RU' },
             signal: controller.signal,
             timeout: 5000
           }
         )
         setOptions(
-          [...new Set(data.features.map(formatAddress).filter(Boolean))].map(
-            (value) => ({ value })
-          )
+          [
+            ...new Set(
+              data.features
+                .map(formatAddress)
+                .filter((value) => value && !/[A-Za-z]/.test(value))
+            )
+          ].map((value) => ({ value }))
         )
       } catch {
         if (!controller.signal.aborted) setOptions([])

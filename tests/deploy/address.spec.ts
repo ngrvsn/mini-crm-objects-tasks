@@ -18,6 +18,8 @@ test('публичные подсказки адреса и ручной вво�
   await address.fill('Москва Тверская')
   const option = page.locator('.ant-select-item-option').first()
   await expect(option).toBeVisible({ timeout: 15000 })
+  await expect(option).toContainText('Россия')
+  await expect(option).not.toContainText('Russia')
   await option.click()
   await expect(address).not.toHaveValue('Москва Тверская')
   await address.fill('Свой адрес стройплощадки')

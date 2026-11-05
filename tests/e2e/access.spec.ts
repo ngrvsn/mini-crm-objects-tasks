@@ -682,6 +682,8 @@ test('подсказка адреса заполняет поле, ручной 
   page
 }) => {
   await page.route('https://photon.komoot.io/api/**', async (route) => {
+    expect(route.request().url()).toContain('lang=default')
+    expect(route.request().url()).toContain('countrycode=RU')
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -709,4 +711,52 @@ test('подсказка адреса заполняет поле, ручной 
   await expect(address).toHaveValue('Россия, Москва, Тверская улица, 1')
   await address.fill('Адрес стройплощадки, введённый вручную')
   await expect(address).toHaveValue('Адрес стройплощадки, введённый вручную')
+})
+
+test('инструкция открывается для обеих ролей и PDF доступен', async ({
+  browser
+}) => {
+  const managerContext = await browser.newContext()
+  const workerContext = await browser.newContext({
+    viewport: { width: 320, height: 700 }
+  })
+  const manager = await managerContext.newPage()
+  const worker = await workerContext.newPage()
+  try {
+    await signIn(manager, 'manager1@example.test')
+    await manager.getByRole('button', { name: 'Инструкция' }).click()
+    const managerGuide = manager.getByRole('dialog', {
+      name: 'Как пользоваться мини-CRM'
+    })
+    await expect(
+      managerGuide.getByRole('tab', { name: 'Я заказчик' })
+    ).toHaveAttribute('aria-selected', 'true')
+    await expect(
+      managerGuide.getByText('Новая задача', { exact: false })
+    ).toBeVisible()
+    await managerGuide.getByRole('tab', { name: 'Я исполнитель' }).click()
+    await expect(
+      managerGuide.getByText('Вы не можете открыть чужую задачу', {
+        exact: false
+      })
+    ).toBeVisible()
+    const pdf = await managerContext.request.get('/mini-crm-guide.pdf')
+    expect(pdf.status()).toBe(200)
+    expect(pdf.headers()['content-type']).toContain('application/pdf')
+
+    await signIn(worker, 'worker1@example.test')
+    await worker.getByRole('button', { name: 'Инструкция' }).click()
+    const workerGuide = worker.getByRole('dialog', {
+      name: 'Как пользоваться мини-CRM'
+    })
+    await expect(
+      workerGuide.getByRole('tab', { name: 'Я исполнитель' })
+    ).toHaveAttribute('aria-selected', 'true')
+    expect(
+      await worker.evaluate(() => document.documentElement.scrollWidth)
+    ).toBeLessThanOrEqual(320)
+  } finally {
+    await managerContext.close()
+    await workerContext.close()
+  }
 })

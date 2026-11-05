@@ -47,6 +47,15 @@ body {
 .app-header-actions {
   flex-shrink: 0;
 }
+.guide-button-icon {
+  display: none;
+}
+.guide-content {
+  line-height: 1.6;
+}
+.guide-content li {
+  margin-bottom: 10px;
+}
 .mobile-menu-button.ant-btn {
   display: none;
   flex-shrink: 0;
@@ -114,5 +123,12 @@ body {
   }
   .app-header-role {
     display: none;
+  }
+  .guide-button-label {
+    display: none;
+  }
+  .guide-button-icon {
+    display: inline;
+    font-weight: 700;
   }
 }

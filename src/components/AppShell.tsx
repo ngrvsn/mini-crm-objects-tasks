@@ -3,6 +3,7 @@
 import { Button, Drawer, Layout, Menu, Space, Spin, Typography } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { GuideModal } from '@/components/GuideModal'
 import { logout } from '@/lib/auth/session'
 import { useAuthStore } from '@/lib/store/auth'
 
@@ -13,6 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { profile, status } = useAuthStore()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
 
   useEffect(() => {
     if (status === 'anonymous') router.replace('/login')
@@ -68,6 +70,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Typography.Text type="secondary" className="app-header-role">
               {profile.role === 'manager' ? 'Постановщик' : 'Исполнитель'}
             </Typography.Text>
+            <Button aria-label="Инструкция" onClick={() => setGuideOpen(true)}>
+              <span className="guide-button-label">Инструкция</span>
+              <span className="guide-button-icon" aria-hidden="true">
+                ?
+              </span>
+            </Button>
             <Button
               onClick={async () => {
                 await logout()
@@ -95,6 +103,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           items={menuItems}
         />
       </Drawer>
+      <GuideModal
+        open={guideOpen}
+        role={profile.role}
+        onClose={() => setGuideOpen(false)}
+      />
     </Layout>
   )
 }
