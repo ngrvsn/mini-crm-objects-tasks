@@ -30,7 +30,7 @@ jobs:
           git diff --check "$BASE_SHA" "$GITHUB_SHA"
           changed=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA")
           echo "$changed"
-          if [[ -n "$changed" ]] && grep -qEv '^[^/]+\.md$|^docs/' <<< "$changed"; then
+          if [[ -n "$changed" ]] && grep -qEv '^[^/]+\.md$|^docs/|^\.docs/' <<< "$changed"; then
             echo 'code=true' >> "$GITHUB_OUTPUT"
           else
             echo 'code=false' >> "$GITHUB_OUTPUT"
