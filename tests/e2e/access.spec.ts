@@ -128,6 +128,65 @@ test('вход и выход синхронизируются между вкл�
   }
 })
 
+test('выход перекрывает запоздалый refresh из другой вкладки', async ({
+  browser
+}) => {
+  const context = await browser.newContext()
+  const first = await context.newPage()
+  const second = await context.newPage()
+  let releaseRefresh: () => void = () => undefined
+  let refreshFinished: () => void = () => undefined
+  const holdRefresh = new Promise<void>((resolve) => {
+    releaseRefresh = resolve
+  })
+  const refreshSeen = new Promise<void>((resolve) => {
+    refreshFinished = resolve
+  })
+  try {
+    await first.goto('/login')
+    await second.goto('/login')
+    await signIn(first, 'manager1@example.test')
+    await expect(second).toHaveURL(/\/objects$/)
+    await second.route('**/api/auth/refresh', async (route) => {
+      const response = await route.fetch()
+      expect(response.status()).toBe(200)
+      refreshFinished()
+      await holdRefresh
+      await route.fulfill({ response })
+    })
+    await second.reload()
+    await refreshSeen
+    const logoutResponse = first.waitForResponse((response) =>
+      response.url().includes('/api/auth/logout')
+    )
+    await first.getByRole('button', { name: 'Выйти' }).click()
+    const lateResponse = second.waitForResponse((response) =>
+      response.url().includes('/api/auth/refresh')
+    )
+    releaseRefresh()
+    expect((await lateResponse).status()).toBe(200)
+    expect((await logoutResponse).status()).toBe(200)
+    await expect(first).toHaveURL(/\/login$/)
+    expect(
+      (await context.cookies()).some((item) => item.name === 'crm-refresh')
+    ).toBe(false)
+    await expect(second).toHaveURL(/\/login$/)
+    await second.unroute('**/api/auth/refresh')
+    const replayResponse = second.waitForResponse((response) =>
+      response.url().includes('/api/auth/refresh')
+    )
+    await second.reload()
+    expect((await replayResponse).status()).toBe(401)
+    await expect(second).toHaveURL(/\/login$/)
+    expect(
+      (await context.cookies()).some((item) => item.name === 'crm-refresh')
+    ).toBe(false)
+  } finally {
+    releaseRefresh()
+    await context.close()
+  }
+})
+
 test('старый отказ refresh не сбрасывает новый успешный вход', async ({
   browser
 }) => {

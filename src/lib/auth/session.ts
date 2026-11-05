@@ -16,6 +16,12 @@ const pendingKey = 'crm-logout-pending'
 const inBrowser = () => typeof window !== 'undefined'
 const isPending = () =>
   inBrowser() && window.localStorage.getItem(pendingKey) === '1'
+const withRefreshLock = async <T>(request: () => Promise<T>): Promise<T> => {
+  if (inBrowser() && 'locks' in navigator && navigator.locks) {
+    return navigator.locks.request('crm-refresh', request)
+  }
+  return request()
+}
 const emit = (type: 'login' | 'logout') => {
   if (!inBrowser()) return
   window.dispatchEvent(new CustomEvent('crm-auth-change', { detail: type }))
@@ -39,16 +45,14 @@ async function runRefresh(): Promise<string | null> {
   if (isPending()) return null
   const epoch = sessionEpoch
   const request = async () => {
+    if (epoch !== sessionEpoch || isPending()) return null
     const { data } = await publicApi.post<AccessResponse>('/auth/refresh')
     if (epoch !== sessionEpoch || isPending()) return null
     accessToken = data.accessToken
     return accessToken
   }
   try {
-    if (inBrowser() && 'locks' in navigator && navigator.locks) {
-      return await navigator.locks.request('crm-refresh', request)
-    }
-    return await request()
+    return await withRefreshLock(request)
   } catch (error) {
     // A refresh started before a new login cannot invalidate that login.
     if (
@@ -72,9 +76,14 @@ export function refreshAccessToken(): Promise<string | null> {
 
 export async function bootstrapSession(): Promise<string | null> {
   if (isPending()) {
+    const epoch = sessionEpoch
     try {
-      await publicApi.post('/auth/logout')
-      window.localStorage.removeItem(pendingKey)
+      await withRefreshLock(async () => {
+        if (epoch !== sessionEpoch || !isPending()) return
+        await publicApi.post('/auth/logout')
+        if (epoch === sessionEpoch && isPending())
+          window.localStorage.removeItem(pendingKey)
+      })
     } catch {
       return null
     }
@@ -102,9 +111,14 @@ export async function login(email: string, password: string): Promise<void> {
 export async function logout(): Promise<void> {
   if (inBrowser()) window.localStorage.setItem(pendingKey, '1')
   clearAccessToken(true)
+  const epoch = sessionEpoch
   try {
-    await publicApi.post('/auth/logout')
-    if (inBrowser()) window.localStorage.removeItem(pendingKey)
+    await withRefreshLock(async () => {
+      if (epoch !== sessionEpoch || !isPending()) return
+      await publicApi.post('/auth/logout')
+      if (epoch === sessionEpoch && isPending())
+        window.localStorage.removeItem(pendingKey)
+    })
   } catch {
     // Keep the pending marker so a later page load retries server revocation.
   }
