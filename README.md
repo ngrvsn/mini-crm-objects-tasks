@@ -14,6 +14,8 @@ Next.js + TypeScript + Ant Design + Axios + Zustand + Supabase. Постанов
 
 `pnpm test:coverage`, `pnpm db:test`, `pnpm test:security`, `pnpm test:concurrency` и `pnpm test:e2e` проверяют интерфейс, права доступа, прямой Data API и одновременные операции с объектом. E2E сам запускает приложение с локальными параметрами Supabase; перед ним должны работать локальный Supabase и `pnpm seed:local`. Для `test:concurrency` нужен Docker с локальным контейнером базы. На Windows E2E использует установленный Edge, в CI — Chromium. `pnpm build` проверяет production-сборку.
 
+GitHub Actions запускает полный набор проверок при любом изменении вне корневых Markdown-файлов и каталога `docs/`. Если изменена только документация, выполняется проверка diff без сборок.
+
 ## Структура проекта
 
 - `src/app/` — пять экранов и серверные маршруты входа, обновления сессии, выхода и healthcheck.
